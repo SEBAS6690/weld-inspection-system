@@ -9,7 +9,7 @@ import base64
 
 app = FastAPI(
     title="API 1104 Weld Inspection System",
-    version="1.3.0"
+    version="1.4.0"
 )
 
 # Configuración de CORS
@@ -120,7 +120,7 @@ async def inspect_weld(
     detected_boxes = []
 
     if model is not None:
-        results = model.predict(source=image, conf=0.25)
+        results = model.predict(source=image, conf=0.20)
         boxes = results[0].boxes
 
         if len(boxes) > 0:
@@ -154,23 +154,40 @@ async def inspect_weld(
     else:
         verdict, clause, observation = evaluate_api1104_rules(defect_detected, defect_size_mm)
 
-    # Dibujar los Bounding Boxes sobre la imagen
+    # 🎨 DIBUJO DE ALTO CONTRASTE Y DENSIDAD SOBRE LA FALLA
     processed_image = image.copy()
-    box_color = (0, 0, 255) if verdict == "RECHAZADO" else (0, 255, 136) # Rojo si rechaza, verde si aprueba
+    
+    # Colores BGR: Rojo Neón si es Rechazado (0,0,255), Verde Neón si es Aprobado (0,255,136)
+    main_color = (0, 0, 255) if verdict == "RECHAZADO" else (0, 255, 136)
+    border_thickness = 4
 
     for b in detected_boxes:
         x1, y1, x2, y2 = b["bbox"]
-        label = f"{b['class']} ({b['confidence']*100:.0f}%)"
-        
-        # Dibujar recuadro
-        cv2.rectangle(processed_image, (x1, y1), (x2, y2), box_color, 3)
-        
-        # Dibujar fondo de texto
-        (w_text, h_text), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-        cv2.rectangle(processed_image, (x1, y1 - 25), (x1 + w_text, y1), box_color, -1)
-        cv2.putText(processed_image, label, (x1, y1 - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+        label = f"{b['class'].upper()} ({b['confidence']*100:.0f}%)"
 
-    # Convertir imagen procesada a Base64 para enviar al Frontend
+        # 1. Borde de contraste externo (Negro)
+        cv2.rectangle(processed_image, (x1 - 2, y1 - 2), (x2 + 2, y2 + 2), (0, 0, 0), border_thickness + 2)
+        
+        # 2. Recuadro Principal del Defecto (Color Neón)
+        cv2.rectangle(processed_image, (x1, y1), (x2, y2), main_color, border_thickness)
+
+        # 3. Marcas de Esquina Cruzadas para Resaltar
+        corner_len = int(min(x2 - x1, y2 - y1) * 0.25)
+        if corner_len > 5:
+            # Esquina superior izquierda
+            cv2.line(processed_image, (x1, y1), (x1 + corner_len, y1), (255, 255, 255), border_thickness + 1)
+            cv2.line(processed_image, (x1, y1), (x1, y1 + corner_len), (255, 255, 255), border_thickness + 1)
+            # Esquina inferior derecha
+            cv2.line(processed_image, (x2, y2), (x2 - corner_len, y2), (255, 255, 255), border_thickness + 1)
+            cv2.line(processed_image, (x2, y2), (x2, y2 - corner_len), (255, 255, 255), border_thickness + 1)
+
+        # 4. Etiqueta con Fondo
+        (w_text, h_text), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        label_y1 = max(y1 - 30, 0)
+        cv2.rectangle(processed_image, (x1, label_y1), (x1 + w_text + 10, label_y1 + 25), main_color, -1)
+        cv2.putText(processed_image, label, (x1 + 5, label_y1 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+    # Convertir imagen procesada a Base64
     _, buffer = cv2.imencode('.jpg', processed_image)
     image_base64 = base64.b64encode(buffer).decode('utf-8')
 
