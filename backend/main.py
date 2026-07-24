@@ -14,12 +14,14 @@ app = FastAPI(
 # Permitir solicitudes CORS desde la App Móvil / Frontend
 # 🔒 CONFIGURACIÓN DE CORS PERMISIVA PARA NAVEGADORES MÓVILES Y VERCEL
 # 🔒 CONFIGURACIÓN DE CORS COMPATIBLE CON VERCEL Y CLAVES PERSONALIZADAS
+# 🔒 CONFIGURACIÓN DE CORS UNIVERSAL PARA VERCEL Y MÓVILES
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # Se cambia a False para permitir wildcard '*' con encabezados personalizados
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Tabla de Diámetros Exteriores Reales (OD) en mm (ASME B36.10M / API 5L)
