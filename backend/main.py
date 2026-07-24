@@ -43,11 +43,16 @@ OD_TABLE_MM = {
 
 def compute_scale_mm_per_px(image: np.ndarray, od_real_mm: float):
     h, w, _ = image.shape
-    detected_pipe_diameter_px = w * 0.80  
+    
+    # En toma horizontal del tubo, el diámetro exterior (OD) corresponde al alto (h)
+    detected_pipe_diameter_px = h * 0.70  # Coincide con la apertura de las guías amarillas
+    
     scale_mm_px = od_real_mm / detected_pipe_diameter_px
     px_per_mm = 1.0 / scale_mm_px
+    
     if px_per_mm < 3.0:
-        return None, "Calidad insuficiente: La foto fue tomada muy lejos."
+        return None, "Calidad insuficiente: Acerque más la cámara para enfocar el cordón."
+        
     return scale_mm_px, None
 
 def evaluate_api1104_rules(defect_type: str, size_mm: float):
