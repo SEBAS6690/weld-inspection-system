@@ -4,10 +4,7 @@
 
 // Clave de seguridad corporativa (Debe coincidir con COMPANY_API_KEY en main.py)
 const COMPANY_API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!";
-
-// URL de tu backend desplegado en Render (o tu servidor en la nube)
-const BACKEND_API_URL = 'https://weld-inspection-backend.onrender.com/v1/inspect';
-
+const BACKEND_API_URL = 'https://weld-inspection-system.onrender.com/v1/inspect';
 // Elementos de la Interfaz Gráfica (DOM)
 const webcamElement = document.getElementById('webcam');
 const canvasElement = document.getElementById('snapshotCanvas');
