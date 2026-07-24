@@ -1,97 +1,96 @@
 // ==========================================================================
-// CONFIGURACIÓN Y LÓGICA DE CAPTURA - API 1104 WELD INSPECTION SYSTEM
+// LÓGICA FRONTEND - SISTEMA DE INSPECCIÓN API 1104
 // ==========================================================================
 
-const BACKEND_API_URL = 'https://weld-inspection-system.onrender.com/v1/inspect';
-const COMPANY_API_KEY = 'WeldSec2026_EmpresaPrivada_SecretKey!';
+const API_BASE_URL = "https://weld-inspection-system.onrender.com"; // O tu URL de Render
+const API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!";
 
-const video = document.getElementById('webcamFeed');
-const canvas = document.getElementById('captureCanvas');
+// Elementos del DOM
+const webcamFeed = document.getElementById('webcamFeed');
+const captureCanvas = document.getElementById('captureCanvas');
 const captureBtn = document.getElementById('captureBtn');
 const pipeSelect = document.getElementById('pipeSelect');
 const resultsPanel = document.getElementById('resultsPanel');
 
-// 1. Inicializar la Cámara
-async function startCamera() {
+// Inicializar la Cámara al Cargar
+async function initCamera() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const constraints = {
             video: {
-                facingMode: { ideal: "environment" }, // Prioriza cámara trasera en móviles
+                facingMode: { ideal: "environment" }, // Prioriza cámara trasera en smartphones
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             },
             audio: false
-        });
-        video.srcObject = stream;
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        webcamFeed.srcObject = stream;
     } catch (err) {
         console.error("Error al acceder a la cámara:", err);
-        alert("No se pudo acceder a la cámara. Asegúrate de otorgar los permisos necesarios.");
+        alert("No se pudo acceder a la cámara. Asegúrate de conceder permisos en el navegador.");
     }
 }
 
-// 2. Evento del Botón "Capturar e Inspeccionar"
-captureBtn.addEventListener('click', async () => {
-    // Validar que el video esté listo y transmitiendo
-    if (!video.videoWidth || !video.videoHeight) {
-        alert("La cámara se está inicializando. Por favor, espera un segundo e intenta de nuevo.");
+// Capturar Imagen e Invocar la API de Inspección
+async function captureAndInspect() {
+    if (!webcamFeed.srcObject) {
+        alert("La cámara no está activa.");
         return;
     }
 
-    // Configurar dimensiones del canvas con la resolución real del video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // Configurar Canvas para la captura
+    const width = webcamFeed.videoWidth || 1280;
+    const height = webcamFeed.videoHeight || 720;
+    captureCanvas.width = width;
+    captureCanvas.height = height;
 
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const ctx = captureCanvas.getContext('2d');
+    ctx.drawImage(webcamFeed, 0, 0, width, height);
 
-    // Feedback visual para el usuario
+    // Deshabilitar botón durante el procesamiento
     captureBtn.disabled = true;
-    captureBtn.innerText = "Procesando con IA (API 1104)...";
+    captureBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> PROCESANDO IA...';
 
-    // Convertir la imagen del canvas a Blob (JPEG)
-    canvas.toBlob(async (blob) => {
+    // Convertir Canvas a Blob (JPEG)
+    captureCanvas.toBlob(async (blob) => {
         if (!blob) {
-            alert("Error al procesar la captura de la imagen.");
+            alert("Error al capturar el fotograma.");
             resetButton();
             return;
         }
 
         const formData = new FormData();
         formData.append('pipe_diameter_inch', pipeSelect.value);
-        formData.append('file', blob, 'weld_capture.jpg');
+        formData.append('file', blob, 'capture.jpg');
 
         try {
-            const response = await fetch(BACKEND_API_URL, {
+            const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
                 method: 'POST',
                 headers: {
-                    'X-API-Key': COMPANY_API_KEY // 🔑 Autenticación enviada al backend
+                    'X-API-Key': API_KEY
                 },
                 body: formData
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || `Error en servidor: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Error HTTP: ${response.status}`);
             }
 
             const data = await response.json();
             displayResults(data);
 
-        } catch (error) {
-            console.error("Error en la inspección:", error);
-            alert("Error de inspección: " + error.message);
+        } catch (err) {
+            console.error("Error en la inspección:", err);
+            alert(`Error de inspección: ${err.message}`);
         } finally {
             resetButton();
         }
     }, 'image/jpeg', 0.92);
-});
-
-// Restablecer el estado del botón
-function resetButton() {
-    captureBtn.disabled = false;
-    captureBtn.innerText = "Capturar e Inspeccionar";
 }
 
+// Desplegar Resultados e Imagen Enmarcada
 function displayResults(data) {
     if (data.status === "QUALITY_ERROR") {
         alert("⚠️ Advertencia de Calidad:\n" + data.message);
@@ -101,8 +100,10 @@ function displayResults(data) {
     const summary = data.inspection_summary;
     if (!summary) return;
 
+    // Mostrar el panel de resultados
     resultsPanel.style.display = "block";
     
+    // Llenar Ficha Técnica
     document.getElementById('resPipe').innerText = summary.pipe_nominal_size;
     document.getElementById('resScale').innerText = `${summary.resolution_scale_mm_px} mm/px`;
     document.getElementById('resDefect').innerText = summary.defect_detected;
@@ -110,13 +111,14 @@ function displayResults(data) {
     document.getElementById('resClause').innerText = summary.applied_norm_clause;
     document.getElementById('resObs').innerText = summary.observation;
 
-    // Mostrar la imagen con la falla enmarcada
+    // Renderizar Imagen Enmarcada con Bounding Box en Base64
     const imgElem = document.getElementById('resAnnotatedImg');
     if (imgElem && summary.annotated_image) {
         imgElem.src = summary.annotated_image;
         imgElem.style.display = "block";
     }
 
+    // Estilizado según Veredicto
     const badge = document.getElementById('verdictBadge');
     const card = document.getElementById('resultsCard');
 
@@ -130,8 +132,15 @@ function displayResults(data) {
         card.className = "results-card rejected";
     }
 
+    // Desplazamiento suave al resultado
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Iniciar cámara automáticamente al cargar la página
-startCamera();
+function resetButton() {
+    captureBtn.disabled = false;
+    captureBtn.innerHTML = '<i class="fa-solid fa-camera"></i> CAPTURAR E INSPECCIONAR';
+}
+
+// Event Listeners
+captureBtn.addEventListener('click', captureAndInspect);
+window.addEventListener('load', initCamera);
