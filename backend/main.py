@@ -13,9 +13,10 @@ app = FastAPI(
 
 # Permitir solicitudes CORS desde la App Móvil / Frontend
 # 🔒 CONFIGURACIÓN DE CORS PERMISIVA PARA NAVEGADORES MÓVILES Y VERCEL
+# 🔒 CONFIGURACIÓN DE CORS COMPATIBLE CON VERCEL Y CLAVES PERSONALIZADAS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite peticiones desde cualquier subdominio de Vercel o móvil
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
