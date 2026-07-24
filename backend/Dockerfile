@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Instalar dependencias del sistema necesarias para OpenCV y gráficos
+# Instalar dependencias del sistema necesarias para OpenCV
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -18,5 +18,5 @@ COPY . .
 # Exponer el puerto predeterminado
 EXPOSE 8000
 
-# Comando para arrancar FastAPI en producción
-CMD ["uvicorn", "main.py:app", "--host", "0.0.0.0", "--port", "8000"]
+# 🔴 CORRECCIÓN AQUÍ: Se usa main:app (sin .py)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
