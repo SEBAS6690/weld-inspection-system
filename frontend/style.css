@@ -133,26 +133,31 @@ body {
 
 /* Recuadro central para la soldadura */
 /* Recuadro central para la soldadura (Cubre el 100% del ancho del tubo) */
+
+/* Recuadro del cordón de soldadura (Atraviesa verticalmente la junta de pared a pared) */
+/* Recuadro del cordón de soldadura (Atraviesa verticalmente la junta de pared a pared) */
 .weld-roi-box {
-    width: 90%; /* Se extiende a todo lo largo del diámetro horizontal */
-    height: 60%;
+    width: 25%; /* Ancho adecuado para encuadrar la franja del cordón */
+    height: 100%; /* Atraviesa de arriba a abajo todo el diámetro entre las líneas amarillas */
     border: 2px dashed var(--accent-green);
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+    border-radius: 6px;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
     display: flex;
     justify-content: center;
-    align-items: flex-end;
-    padding-bottom: 8px;
+    align-items: center;
 }
 
 .roi-label {
     font-size: 0.65rem;
     color: var(--accent-green);
-    background: rgba(0, 0, 0, 0.7);
-    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 3px 8px;
     border-radius: 4px;
     text-align: center;
+    transform: rotate(-90deg); /* Texto orientado a lo largo del cordón vertical */
+    white-space: nowrap;
 }
+
 
 /* Botón Principal */
 .primary-btn {
