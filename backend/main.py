@@ -34,12 +34,22 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
         )
     return api_key
 
+import torch
+from ultralytics.nn.tasks import DetectionModel
+
+# Permitir la clase DetectionModel en PyTorch para evitar el error de Unpickling en Render
+torch.serialization.add_safe_globals([DetectionModel])
+
 # Cargar Modelo YOLO Real (.pt)
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "best.pt")
 
 if os.path.exists(MODEL_PATH):
     print(f"Loading YOLO model from: {MODEL_PATH}")
-    model = YOLO(MODEL_PATH)
+    try:
+        model = YOLO(MODEL_PATH)
+    except Exception as e:
+        print(f"Error loading YOLO model: {e}")
+        model = None
 else:
     print(f"Warning: {MODEL_PATH} not found. Running in fallback mode.")
     model = None
