@@ -1,19 +1,27 @@
 /* ==========================================================================
-   SISTEMA DE INSPECCIÓN DE SOLDADURA VT - API 1104
-   Estilos Principales para Aplicación Web / PWA Móvil
+   ESTILOS PRINCIPALES - API 1104 WELD INSPECTION SYSTEM
    ========================================================================== */
 
-/* 1. Estilos Globales y Resets */
+:root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151c2e;
+    --accent-green: #00ff88;
+    --accent-red: #ff3366;
+    --text-primary: #ffffff;
+    --text-secondary: #8a99ad;
+    --border-color: #232d42;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-    background-color: #0f172a; /* Azul oscuro industrial */
-    color: #f8fafc;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -24,243 +32,245 @@ body {
 .app-container {
     width: 100%;
     max-width: 500px;
-    background-color: #1e293b;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* 2. Encabezado de la Aplicación */
+/* Header */
 .app-header {
-    background-color: #0f172a;
-    padding: 16px;
     text-align: center;
-    border-bottom: 1px solid #334155;
+    margin-bottom: 20px;
 }
 
-.app-header h1 {
+.logo-title h1 {
     font-size: 1.2rem;
-    font-weight: 700;
-    color: #00ff88; /* Verde neón técnico */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--accent-green);
+    letter-spacing: 1px;
 }
 
-.app-header p {
+.subtitle {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: var(--text-secondary);
     margin-top: 4px;
 }
 
-/* 3. Panel de Configuración (Diámetro Nominal OD) */
-.controls-panel {
-    padding: 15px;
-    background-color: #1e293b;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+.icon-glow {
+    font-size: 1.8rem;
+    color: var(--accent-green);
+    margin-bottom: 6px;
 }
 
-.controls-panel label {
+/* Controls */
+.controls-section {
+    margin-bottom: 15px;
+}
+
+.controls-section label {
+    display: block;
     font-size: 0.85rem;
-    font-weight: 600;
-    color: #cbd5e1;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
 }
 
-.controls-panel select {
+.styled-select {
     width: 100%;
-    padding: 10px 12px;
+    padding: 10px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    background-color: #0f172a;
-    color: #00ff88;
-    border: 1px solid #334155;
     font-size: 0.95rem;
-    font-weight: 600;
     outline: none;
-    cursor: pointer;
 }
 
-.controls-panel select:focus {
-    border-color: #00ff88;
-}
-
-/* 4. Visor de Cámara y Overlay de Alineación */
-.camera-viewport {
-    position: relative;
+/* Visor de Cámara y Overlay Corregido */
+.viewport-section {
     width: 100%;
-    height: 360px;
-    background-color: #000;
+}
+
+.video-wrapper {
+    position: relative; /* 🔑 Clave para posicionar las guías adentro */
+    width: 100%;
+    border-radius: 12px;
     overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background: #000;
+    border: 1px solid var(--border-color);
+    aspect-ratio: 4 / 3;
 }
 
 #webcamFeed {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
-/* Canvas oculto para procesar captura */
-#captureCanvas {
-    display: none;
-}
-
-/* 5. Capa de Guías Visuales (Overlay) */
-.overlay-guides {
+/* Capa Sobrepuesta (Overlay Grid) */
+.overlay-grid {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-}
-
-/* Línea Guía Amarilla Superior */
-.guide-line-top {
-    position: absolute;
-    top: 15%;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    border-top: 2px dashed #ffcc00;
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
-}
-
-/* Línea Guía Amarilla Inferior */
-.guide-line-bottom {
-    position: absolute;
-    bottom: 15%;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    border-top: 2px dashed #ffcc00;
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.6);
-}
-
-/* Recuadro Verde para Cordón Vertical (ROI) */
-.roi-box {
-    position: absolute;
-    top: 15%;
-    left: 35%;
-    width: 30%;          /* Mantiene el cordón centrado */
-    height: 70%;         /* Cubre la soldadura de arriba a abajo */
-    border: 2px dashed #00ff88;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-    border-radius: 8px;
-    pointer-events: none;
+    pointer-events: none; /* Permite la interacción por debajo */
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15% 0;
+}
+
+/* Líneas de límite superior e inferior del tubo */
+.pipe-limit-line {
+    width: 90%;
+    height: 2px;
+    border-top: 2px dashed #ffcc00;
+    box-shadow: 0 0 8px rgba(255, 204, 0, 0.8);
+}
+
+/* Recuadro central para la soldadura */
+.weld-roi-box {
+    width: 35%;
+    height: 60%;
+    border: 2px dashed var(--accent-green);
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+    display: flex;
     justify-content: center;
-    padding-bottom: 10px;
+    align-items: flex-end;
+    padding-bottom: 8px;
 }
 
 .roi-label {
-    background-color: rgba(15, 23, 42, 0.85);
-    color: #00ff88;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 3px 8px;
+    font-size: 0.65rem;
+    color: var(--accent-green);
+    background: rgba(0, 0, 0, 0.7);
+    padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid #00ff88;
     text-align: center;
 }
 
-/* 6. Botones de Acción */
-.action-panel {
-    padding: 15px;
-    display: flex;
-    justify-content: center;
-    background-color: #1e293b;
-}
-
-.btn-capture {
+/* Botón Principal */
+.primary-btn {
     width: 100%;
+    margin-top: 15px;
     padding: 14px;
-    border-radius: 10px;
+    background: var(--accent-green);
+    color: #000;
     border: none;
-    background: linear-gradient(135deg, #00ff88, #00b359);
-    color: #0f172a;
+    border-radius: 10px;
+    font-weight: bold;
     font-size: 1rem;
-    font-weight: 700;
-    text-transform: uppercase;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
-    transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease;
 }
 
-.btn-capture:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
+.primary-btn:active {
+    transform: scale(0.98);
 }
 
-.btn-capture:active {
-    transform: translateY(0);
+.primary-btn:disabled {
+    background: #3a4b5c;
+    color: #8a99ad;
+    cursor: not-allowed;
 }
 
-/* 7. Panel de Resultados de Inspección */
-.results-panel {
-    padding: 15px;
-    background-color: #0f172a;
-    border-top: 1px solid #334155;
-    display: none; /* Se activa mediante JavaScript al recibir respuesta */
+/* Panel de Resultados */
+.results-section {
+    margin-top: 20px;
 }
 
 .results-card {
-    background-color: #1e293b;
-    border-radius: 10px;
+    background: var(--bg-dark);
+    border: 1px solid var(--accent-green);
+    border-radius: 12px;
     padding: 15px;
-    border-left: 5px solid #00ff88;
 }
 
 .results-card.rejected {
-    border-left-color: #ff4d4d; /* Rojo si es RECHAZADO */
+    border-color: var(--accent-red);
 }
 
-.verdict-header {
+.card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
-.verdict-title {
+.card-header h2 {
     font-size: 0.9rem;
-    color: #cbd5e1;
+    color: var(--text-secondary);
 }
 
 .verdict-badge {
-    font-size: 0.95rem;
-    font-weight: 800;
     padding: 4px 10px;
     border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.85rem;
 }
 
 .verdict-badge.approved {
-    background-color: rgba(0, 255, 136, 0.2);
-    color: #00ff88;
-    border: 1px solid #00ff88;
+    background: rgba(0, 255, 136, 0.2);
+    color: var(--accent-green);
 }
 
 .verdict-badge.rejected {
-    background-color: rgba(255, 77, 77, 0.2);
-    color: #ff4d4d;
-    border: 1px solid #ff4d4d;
+    background: rgba(255, 51, 102, 0.2);
+    color: var(--accent-red);
 }
 
-.details-list {
-    list-style: none;
-    font-size: 0.85rem;
-    color: #94a3b8;
+.result-image-container h3 {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.annotated-image {
+    width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.detail-item {
     display: flex;
     flex-direction: column;
-    gap: 6px;
 }
 
-.details-list span {
-    color: #f8fafc;
+.detail-item.full-width {
+    grid-column: span 2;
+}
+
+.detail-item .label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.detail-item .value {
+    font-size: 0.85rem;
     font-weight: 600;
+}
+
+.value.highlight {
+    color: var(--accent-green);
+}
+
+.value.code-text {
+    font-family: monospace;
+    color: #ffcc00;
+}
+
+.value.text-obs {
+    font-size: 0.8rem;
+    color: var(--text-primary);
 }
