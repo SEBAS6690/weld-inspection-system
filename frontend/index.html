@@ -22,19 +22,22 @@
             </div>
         </header>
 
-        <!-- Selector de Diámetro Nominal -->
-        <section class="controls-section">
-            <label for="pipeSelect">
-                <i class="fa-solid fa-ruler-combined"></i> Diámetro Nominal de Tubería (OD):
-            </label>
-            <select id="pipeSelect" class="styled-select">
-                <option value="4">4" (OD: 114.3 mm)</option>
-                <option value="6">6" (OD: 168.3 mm)</option>
-                <option value="8" selected>8" (OD: 219.1 mm)</option>
-                <option value="10">10" (OD: 273.1 mm)</option>
-                <option value="12">12" (OD: 323.9 mm)</option>
+        <!-- Controles de Selección y Seguridad -->
+        <div class="controls-section">
+            <label for="apiKeyInput">🔑 Credencial de Acceso Corporativo:</label>
+            <input type="password" id="apiKeyInput" class="styled-select" placeholder="Ingrese su credencial privada" style="margin-bottom: 12px;">
+
+            <label for="pipeDiameter">📏 Diámetro Nominal de Tubería (OD):</label>
+            <select id="pipeDiameter" class="styled-select">
+                <option value="60.3">2" (OD: 60.3 mm)</option>
+                <option value="88.9">3" (OD: 88.9 mm)</option>
+                <option value="114.3" selected>4" (OD: 114.3 mm)</option>
+                <option value="168.3">6" (OD: 168.3 mm)</option>
+                <option value="219.1">8" (OD: 219.1 mm)</option>
+                <option value="273.0">10" (OD: 273.0 mm)</option>
+                <option value="323.8">12" (OD: 323.8 mm)</option>
             </select>
-        </section>
+        </div>
 
         <!-- Visor de Cámara y Overlay de Alineación -->
         <section class="viewport-section">
