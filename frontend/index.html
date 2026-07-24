@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección VT API 1104</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Inspección VT - API 1104</h1>
+        <p>Alinee el cordón de soldadura dentro de la guía</p>
+    </header>
+
+    <main class="container">
+        <!-- Selector de Diámetro Nominal -->
+        <div class="input-group">
+            <label for="pipeDiameter">Diámetro Nominal de Tubería (OD):</label>
+            <select id="pipeDiameter">
+                <option value="4">4" (OD: 114.3 mm)</option>
+                <option value="6">6" (OD: 168.3 mm)</option>
+                <option value="8" selected>8" (OD: 219.1 mm)</option>
+                <option value="10">10" (OD: 273.1 mm)</option>
+                <option value="12">12" (OD: 323.9 mm)</option>
+            </select>
+        </div>
+
+        <!-- Visor de Cámara y Plantilla Guía -->
+        <div class="camera-wrapper">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="snapshotCanvas" style="display:none;"></canvas>
+            
+            <!-- Plantilla Superpuesta (Overlay UI) -->
+            <div class="overlay-guide">
+                <div class="pipe-guide-line top"></div>
+                <div class="weld-target-zone">
+                    <span>Alinee el cordón de soldadura aquí</span>
+                </div>
+                <div class="pipe-guide-line bottom"></div>
+            </div>
+        </div>
+
+        <!-- Botón de Captura -->
+        <button id="captureBtn" class="btn-primary">📷 Capturar e Inspeccionar</button>
+
+        <!-- Spinner de Carga -->
+        <div id="loader" class="loader-container" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analizando geometría y evaluando norma API 1104...</p>
+        </div>
+
+        <!-- Tarjeta de Resultados -->
+        <div id="resultCard" class="card" style="display: none;">
+            <h2 id="verdictHeader">VEREDICTO</h2>
+            <div class="result-details">
+                <p><strong>Defecto Detectado:</strong> <span id="resDefect">-</span></p>
+                <p><strong>Tamaño Estimado:</strong> <span id="resSize">-</span> mm</p>
+                <p><strong>Escala Espacial:</strong> <span id="resScale">-</span> mm/px</p>
+                <p><strong>Cláusula Aplicada:</strong> <span id="resClause">-</span></p>
+                <p><strong>Observación:</strong> <span id="resObservation">-</span></p>
+            </div>
+            <button id="retryBtn" class="btn-secondary">🔄 Nueva Inspección</button>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
