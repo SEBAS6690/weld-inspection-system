@@ -93,7 +93,7 @@ body {
 }
 
 .video-wrapper {
-    position: relative; /* Indispensable para fijar las guías sobre el video */
+    position: relative;
     width: 100%;
     border-radius: 12px;
     overflow: hidden;
@@ -109,8 +109,7 @@ body {
     display: block;
 }
 
-
-/* Capa Sobrepuesta (Ocupa exactamente el 100% de la ventana del video) */
+/* Capa Sobrepuesta */
 .overlay-grid {
     position: absolute;
     top: 0;
@@ -121,48 +120,29 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 12% 0; /* Margen superior e inferior para encuadrar la tubería */
+    box-sizing: border-box;
 }
 
-/* Líneas Amarillas de Límite (Posicionamiento Absoluto de borde a borde) */
-.pipe-limit-line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    width: 100%; /* Forzado al 100% del contenedor del video */
-    height: 0;
-    border-top: 4px dashed var(--accent-yellow);
-    box-shadow: 0 0 12px rgba(255, 204, 0, 1);
-    z-index: 10;
-}
-
-/* Posición fija superior e inferior dentro del visor */
-.pipe-limit-line.top {
-    top: 15%;
-}
-
-.pipe-limit-line.bottom {
-    bottom: 15%;
+/* Marco Periférico Completo (Los 4 Bordes Amarillos) */
+.pipe-outer-frame {
+    width: 100%; /* Ocupa todo el ancho de la ventana de video */
+    height: 100%; /* Delimita la altura completa del tubo */
+    border: 3px dashed var(--accent-yellow); /* Marco punteado de 4 bordes */
+    box-shadow: 0 0 12px rgba(255, 204, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 /* Recuadro Verde Vertical de la Soldadura */
 .weld-roi-box {
     width: 25%;
-    height: 70%; /* Ocupa la distancia exacta entre ambas líneas amarillas */
+    height: 100%; /* Conecta de pared superior a inferior del marco amarillo */
     border: 2px dashed var(--accent-green);
-    border-radius: 6px;
-    box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
-    z-index: 5;
-}
-
-.roi-label {
-    font-size: 0.65rem;
-    color: var(--accent-green);
-    background: rgba(0, 0, 0, 0.85);
-    padding: 3px 8px;
     border-radius: 4px;
-    text-align: center;
-    transform: rotate(-90deg); /* Orientado a lo largo del cordón vertical */
-    white-space: nowrap;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
 }
 
 /* Botón de Captura */
