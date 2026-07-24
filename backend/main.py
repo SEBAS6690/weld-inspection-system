@@ -64,15 +64,15 @@ OD_TABLE_MM = {
 }
 
 def compute_scale_mm_per_px(image: np.ndarray, od_real_mm: float):
-    """Calcula la escala mm/px basada en la altura de la toma."""
+    """Calcula la escala mm/px basada en la altura del tubo a lo largo de toda la junta."""
     h, w, _ = image.shape
-    detected_pipe_diameter_px = h * 0.70  # Apertura de las guías
+    detected_pipe_diameter_px = h * 0.70  # Apertura de las guías de encuadre superior e inferior
     
     scale_mm_px = od_real_mm / detected_pipe_diameter_px
     px_per_mm = 1.0 / scale_mm_px
     
     if px_per_mm < 3.0:
-        return None, "Calidad insuficiente: Acerque más la cámara para enfocar el cordón."
+        return None, "Calidad insuficiente: Acerque más la cámara para enfocar el cordón de soldadura."
         
     return scale_mm_px, None
 

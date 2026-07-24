@@ -132,8 +132,9 @@ body {
 }
 
 /* Recuadro central para la soldadura */
+/* Recuadro central para la soldadura (Cubre el 100% del ancho del tubo) */
 .weld-roi-box {
-    width: 35%;
+    width: 90%; /* Se extiende a todo lo largo del diámetro horizontal */
     height: 60%;
     border: 2px dashed var(--accent-green);
     border-radius: 8px;
