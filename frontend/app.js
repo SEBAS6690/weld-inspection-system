@@ -92,7 +92,6 @@ function resetButton() {
     captureBtn.innerText = "Capturar e Inspeccionar";
 }
 
-// 3. Renderizar los Resultados en Pantalla
 function displayResults(data) {
     if (data.status === "QUALITY_ERROR") {
         alert("⚠️ Advertencia de Calidad:\n" + data.message);
@@ -111,6 +110,13 @@ function displayResults(data) {
     document.getElementById('resClause').innerText = summary.applied_norm_clause;
     document.getElementById('resObs').innerText = summary.observation;
 
+    // Mostrar la imagen con la falla enmarcada
+    const imgElem = document.getElementById('resAnnotatedImg');
+    if (imgElem && summary.annotated_image) {
+        imgElem.src = summary.annotated_image;
+        imgElem.style.display = "block";
+    }
+
     const badge = document.getElementById('verdictBadge');
     const card = document.getElementById('resultsCard');
 
@@ -124,7 +130,6 @@ function displayResults(data) {
         card.className = "results-card rejected";
     }
 
-    // Desplazar la vista suavemente hacia la tarjeta de resultado
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }
 
