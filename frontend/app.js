@@ -3,6 +3,7 @@
 // ==========================================================================
 
 const BACKEND_API_URL = 'https://weld-inspection-system.onrender.com/v1/inspect';
+const COMPANY_API_KEY = 'WeldSec2026_EmpresaPrivada_SecretKey!';
 
 const video = document.getElementById('webcamFeed');
 const canvas = document.getElementById('captureCanvas');
@@ -15,7 +16,7 @@ async function startCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: { ideal: "environment" }, // Prioriza cámara trasera en teléfonos
+                facingMode: { ideal: "environment" }, // Prioriza cámara trasera en móviles
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
             },
@@ -24,7 +25,7 @@ async function startCamera() {
         video.srcObject = stream;
     } catch (err) {
         console.error("Error al acceder a la cámara:", err);
-        alert("No se pudo acceder a la cámara. Asegúrate de dar los permisos correspondientes.");
+        alert("No se pudo acceder a la cámara. Asegúrate de otorgar los permisos necesarios.");
     }
 }
 
@@ -62,6 +63,9 @@ captureBtn.addEventListener('click', async () => {
         try {
             const response = await fetch(BACKEND_API_URL, {
                 method: 'POST',
+                headers: {
+                    'X-API-Key': COMPANY_API_KEY // 🔑 Autenticación enviada al backend
+                },
                 body: formData
             });
 
@@ -120,9 +124,9 @@ function displayResults(data) {
         card.className = "results-card rejected";
     }
 
-    // Desplazar la vista suavemente hacia el resultado
+    // Desplazar la vista suavemente hacia la tarjeta de resultado
     resultsPanel.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Iniciar cámara al cargar la página
+// Iniciar cámara automáticamente al cargar la página
 startCamera();
