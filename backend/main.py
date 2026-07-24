@@ -9,10 +9,10 @@ import base64
 
 app = FastAPI(
     title="API 1104 Weld Inspection System",
-    version="1.4.0"
+    version="1.5.0"
 )
 
-# Configuración de CORS
+# Configuración de CORS para permitir peticiones desde Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,9 +54,9 @@ OD_TABLE_MM = {
 }
 
 def compute_scale_mm_per_px(image: np.ndarray, od_real_mm: float):
-    """Calcula la escala mm/px basada en la altura del tubo en toma horizontal."""
+    """Calcula la escala mm/px basada en la altura de la toma."""
     h, w, _ = image.shape
-    detected_pipe_diameter_px = h * 0.70  # Apertura de las guías de encuadre
+    detected_pipe_diameter_px = h * 0.70  # Apertura de las guías
     
     scale_mm_px = od_real_mm / detected_pipe_diameter_px
     px_per_mm = 1.0 / scale_mm_px
@@ -154,34 +154,30 @@ async def inspect_weld(
     else:
         verdict, clause, observation = evaluate_api1104_rules(defect_detected, defect_size_mm)
 
-    # 🎨 DIBUJO DE ALTO CONTRASTE Y DENSIDAD SOBRE LA FALLA
+    # 🎨 DIBUJO DE ALTO CONTRASTE SOBRE LA FALLA
     processed_image = image.copy()
-    
-    # Colores BGR: Rojo Neón si es Rechazado (0,0,255), Verde Neón si es Aprobado (0,255,136)
-    main_color = (0, 0, 255) if verdict == "RECHAZADO" else (0, 255, 136)
+    main_color = (0, 0, 255) if verdict == "RECHAZADO" else (0, 255, 136) # BGR: Rojo o Verde Neón
     border_thickness = 4
 
     for b in detected_boxes:
         x1, y1, x2, y2 = b["bbox"]
         label = f"{b['class'].upper()} ({b['confidence']*100:.0f}%)"
 
-        # 1. Borde de contraste externo (Negro)
+        # 1. Contorno externo negro de contraste
         cv2.rectangle(processed_image, (x1 - 2, y1 - 2), (x2 + 2, y2 + 2), (0, 0, 0), border_thickness + 2)
         
-        # 2. Recuadro Principal del Defecto (Color Neón)
+        # 2. Recuadro principal
         cv2.rectangle(processed_image, (x1, y1), (x2, y2), main_color, border_thickness)
 
-        # 3. Marcas de Esquina Cruzadas para Resaltar
+        # 3. Marcas de esquina blancas
         corner_len = int(min(x2 - x1, y2 - y1) * 0.25)
         if corner_len > 5:
-            # Esquina superior izquierda
             cv2.line(processed_image, (x1, y1), (x1 + corner_len, y1), (255, 255, 255), border_thickness + 1)
             cv2.line(processed_image, (x1, y1), (x1, y1 + corner_len), (255, 255, 255), border_thickness + 1)
-            # Esquina inferior derecha
             cv2.line(processed_image, (x2, y2), (x2 - corner_len, y2), (255, 255, 255), border_thickness + 1)
             cv2.line(processed_image, (x2, y2), (x2, y2 - corner_len), (255, 255, 255), border_thickness + 1)
 
-        # 4. Etiqueta con Fondo
+        # 4. Etiqueta con fondo
         (w_text, h_text), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
         label_y1 = max(y1 - 30, 0)
         cv2.rectangle(processed_image, (x1, label_y1), (x1 + w_text + 10, label_y1 + 25), main_color, -1)
