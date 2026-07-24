@@ -123,22 +123,18 @@ body {
     padding: 15% 0;
 }
 
-/* Líneas de límite superior e inferior del tubo */
+/* Líneas de límite superior e inferior del tubo (Extendidas a lo ancho) */
 .pipe-limit-line {
-    width: 90%;
-    height: 2px;
-    border-top: 2px dashed #ffcc00;
-    box-shadow: 0 0 8px rgba(255, 204, 0, 0.8);
+    width: 98%; /* Ocupa prácticamente todo el ancho del visor */
+    height: 4px; /* Mayor espacio visual */
+    border-top: 3px dashed #ffcc00; /* Línea más gruesa y visible */
+    box-shadow: 0 0 10px rgba(255, 204, 0, 0.9); /* Brillo amarillo resaltado */
 }
 
-/* Recuadro central para la soldadura */
-/* Recuadro central para la soldadura (Cubre el 100% del ancho del tubo) */
-
-/* Recuadro del cordón de soldadura (Atraviesa verticalmente la junta de pared a pared) */
-/* Recuadro del cordón de soldadura (Atraviesa verticalmente la junta de pared a pared) */
+/* Recuadro del cordón de soldadura (Atraviesa verticalmente entre ambas líneas amarillas) */
 .weld-roi-box {
-    width: 25%; /* Ancho adecuado para encuadrar la franja del cordón */
-    height: 100%; /* Atraviesa de arriba a abajo todo el diámetro entre las líneas amarillas */
+    width: 28%; /* Ancho óptimo para encuadrar la franja de la junta */
+    height: 100%; /* Conecta verticalmente la línea superior con la inferior */
     border: 2px dashed var(--accent-green);
     border-radius: 6px;
     box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
@@ -146,6 +142,7 @@ body {
     justify-content: center;
     align-items: center;
 }
+
 
 .roi-label {
     font-size: 0.65rem;
