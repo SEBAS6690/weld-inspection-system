@@ -109,7 +109,8 @@ body {
     display: block;
 }
 
-/* Capa Sobrepuesta (Overlay Grid de Extremo a Extremo) */
+
+/* Capa Sobrepuesta (Ocupa exactamente el 100% de la ventana del video) */
 .overlay-grid {
     position: absolute;
     top: 0;
@@ -118,30 +119,39 @@ body {
     height: 100%;
     pointer-events: none;
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    padding: 15% 0; /* Margen superior e inferior para ubicar el diámetro */
 }
 
-/* Líneas Amarillas de Límite (100% de Ancho Total de Pantalla) */
+/* Líneas Amarillas de Límite (Posicionamiento Absoluto de borde a borde) */
 .pipe-limit-line {
-    width: 100%; /* Ocupa de borde a borde absoluto */
-    height: 4px;
-    border-top: 4px dashed var(--accent-yellow); /* Mayor grosor y visibilidad */
-    box-shadow: 0 0 12px rgba(255, 204, 0, 1); /* Resplandor neón amarillo */
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: 100%; /* Forzado al 100% del contenedor del video */
+    height: 0;
+    border-top: 4px dashed var(--accent-yellow);
+    box-shadow: 0 0 12px rgba(255, 204, 0, 1);
+    z-index: 10;
 }
 
-/* Recuadro Verde Vertical de la Soldadura (Conecta de pared a pared) */
+/* Posición fija superior e inferior dentro del visor */
+.pipe-limit-line.top {
+    top: 15%;
+}
+
+.pipe-limit-line.bottom {
+    bottom: 15%;
+}
+
+/* Recuadro Verde Vertical de la Soldadura */
 .weld-roi-box {
     width: 25%;
-    height: 100%;
+    height: 70%; /* Ocupa la distancia exacta entre ambas líneas amarillas */
     border: 2px dashed var(--accent-green);
     border-radius: 6px;
     box-shadow: 0 0 12px rgba(0, 255, 136, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    z-index: 5;
 }
 
 .roi-label {
