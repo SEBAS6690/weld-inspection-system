@@ -2,70 +2,111 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inspección VT - API 1104</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistema de Inspección Visual API 1104</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Iconos Phosphor / FontAwesome para estética industrial -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
     <div class="app-container">
-        <!-- Encabezado -->
+        <!-- Encabezado Principal -->
         <header class="app-header">
-            <h1>Sistema de inspeccion visual - API 1104</h1>
-            <p>coloque el cordón de soldadura dentro de la guía</p>
+            <div class="logo-title">
+                <i class="fa-solid fa-microscope icon-glow"></i>
+                <div>
+                    <h1>INSPECCIÓN VT - API 1104</h1>
+                    <p class="subtitle">Alinee el cordón de soldadura dentro de la guía</p>
+                </div>
+            </div>
         </header>
 
-        <!-- Panel de Control -->
-        <div class="controls-panel">
-            <label for="pipeSelect">Diámetro Nominal de Tubería (OD):</label>
-            <select id="pipeSelect">
+        <!-- Selector de Diámetro Nominal -->
+        <section class="controls-section">
+            <label for="pipeSelect">
+                <i class="fa-solid fa-ruler-combined"></i> Diámetro Nominal de Tubería (OD):
+            </label>
+            <select id="pipeSelect" class="styled-select">
                 <option value="4">4" (OD: 114.3 mm)</option>
                 <option value="6">6" (OD: 168.3 mm)</option>
                 <option value="8" selected>8" (OD: 219.1 mm)</option>
                 <option value="10">10" (OD: 273.1 mm)</option>
                 <option value="12">12" (OD: 323.9 mm)</option>
             </select>
-        </div>
+        </section>
 
-        <!-- Visor de Cámara y Overlay -->
-        <div class="camera-viewport">
-            <video id="webcamFeed" autoplay playsinline muted></video>
-            <canvas id="captureCanvas"></canvas>
+        <!-- Visor de Cámara y Overlay de Alineación -->
+        <section class="viewport-section">
+            <div class="video-wrapper">
+                <video id="webcamFeed" autoplay playsinline muted></video>
+                <canvas id="captureCanvas" style="display: none;"></canvas>
 
-            <!-- CAPA DE GUÍAS VISUALES (OVERLAY) -->
-            <div class="overlay-guides">
-                <div class="guide-line-top"></div>
-                <div class="roi-box">
-                    <span class="roi-label">Alinee el cordón de soldadura aquí</span>
+                <!-- Retícula de Guiado / Overlay Visual -->
+                <div class="overlay-grid">
+                    <div class="pipe-limit-line top"></div>
+                    <div class="weld-roi-box">
+                        <span class="roi-label">Alinee el cordón de soldadura aquí</span>
+                    </div>
+                    <div class="pipe-limit-line bottom"></div>
                 </div>
-                <div class="guide-line-bottom"></div>
             </div>
-        </div>
 
-        <!-- Botón de Acción -->
-        <div class="action-panel">
-            <button id="captureBtn" class="btn-capture">Capturar e Inspeccionar</button>
-        </div>
+            <!-- Botón de Acción Principal -->
+            <button id="captureBtn" class="primary-btn">
+                <i class="fa-solid fa-camera"></i> CAPTURAR E INSPECCIONAR
+            </button>
+        </section>
 
-        <!-- Panel de Resultados -->
-        <div id="resultsPanel" class="results-panel">
+        <!-- Panel de Resultados de Inspección -->
+        <section id="resultsPanel" class="results-section" style="display: none;">
             <div id="resultsCard" class="results-card">
-                <div class="verdict-header">
-                    <span class="verdict-title">Resultado de Inspección</span>
-                    <span id="verdictBadge" class="verdict-badge">---</span>
+                
+                <!-- Encabezado de Resultados -->
+                <div class="card-header">
+                    <h2><i class="fa-solid fa-clipboard-check"></i> RESULTADO DE EVALUACIÓN</h2>
+                    <span id="verdictBadge" class="verdict-badge">APROBADO</span>
                 </div>
-                <ul class="details-list">
-                    <li>Tubería: <span id="resPipe">---</span></li>
-                    <li>Escala: <span id="resScale">---</span></li>
-                    <li>Defecto Detectado: <span id="resDefect">---</span></li>
-                    <li>Tamaño Defecto: <span id="resSize">---</span></li>
-                    <li>Cláusula Aplicada: <span id="resClause">---</span></li>
-                    <li>Observación: <span id="resObs">---</span></li>
-                </ul>
+
+                <!-- Imagen Analizada con Bounding Box enmarcado -->
+                <div class="result-image-container">
+                    <h3><i class="fa-solid fa-bullseye"></i> Defecto Enmarcado (IA):</h3>
+                    <img id="resAnnotatedImg" src="" alt="Detección de Defectos" class="annotated-image">
+                </div>
+
+                <!-- Ficha Técnica de Resultados -->
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span class="label">Tubería Nominal:</span>
+                        <span id="resPipe" class="value">--</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Escala Calculada:</span>
+                        <span id="resScale" class="value">--</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Discontinuidad:</span>
+                        <span id="resDefect" class="value highlight">--</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Tamaño Estimado:</span>
+                        <span id="resSize" class="value highlight">--</span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <span class="label">Cláusula de Norma Aplicada:</span>
+                        <span id="resClause" class="value code-text">--</span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <span class="label">Observación TÉCNICA:</span>
+                        <span id="resObs" class="value text-obs">--</span>
+                    </div>
+                </div>
+
             </div>
-        </div>
+        </section>
     </div>
 
+    <!-- Script Principal -->
     <script src="app.js"></script>
 </body>
 </html>
