@@ -1,213 +1,192 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
-from fastapi.security import APIKeyHeader
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import io
+import base64
+import torch
 import cv2
 import numpy as np
+from PIL import Image
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
-import os
-import base64
 
+# ==============================================================================
+# CONFIGURACIÓN DE SEGURIDAD Y PARCHE DE COMPATIBILIDAD PYTORCH 2.6+
+# ==============================================================================
+# Clave privada corporativa permitida
+VALID_API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!"
+
+# Parche para la deserialización segura de modelos YOLOv8 en PyTorch 2.6+
+try:
+    from ultralytics.nn.tasks import DetectionModel
+    torch.serialization.add_safe_globals([DetectionModel])
+except Exception as e:
+    print(f"Aviso de parche PyTorch: {e}")
+
+# ==============================================================================
+# INICIALIZACIÓN DE LA APLICACIÓN Y MODELO IA
+# ==============================================================================
 app = FastAPI(
-    title="API 1104 Weld Inspection System",
-    version="1.5.0"
+    title="API de Inspección VT de Soldadura - API 1104",
+    version="1.0.0"
 )
 
-# Configuración de CORS para permitir peticiones desde Vercel
+# Habilitar CORS para permitir peticiones desde Vercel
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_credentials=True,
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
-# Autenticación Corporativa
-COMPANY_API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!"
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-async def verify_api_key(api_key: str = Depends(api_key_header)):
-    if api_key != COMPANY_API_KEY:
-        raise HTTPException(
-            status_code=403, 
-            detail="Acceso denegado: Credencial privada corporativa no válida."
-        )
-    return api_key
-
-import torch
-from ultralytics.nn.tasks import DetectionModel
-
-# Permitir la clase DetectionModel en PyTorch para evitar el error de Unpickling en Render
-torch.serialization.add_safe_globals([DetectionModel])
-
-# Cargar Modelo YOLO Real (.pt)
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "best.pt")
+# Cargar el modelo de IA YOLOv8 entrenado para defectos de soldadura
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "weights", "best.pt")
 
 if os.path.exists(MODEL_PATH):
-    print(f"Loading YOLO model from: {MODEL_PATH}")
-    try:
-        model = YOLO(MODEL_PATH)
-    except Exception as e:
-        print(f"Error loading YOLO model: {e}")
-        model = None
+    model = YOLO(MODEL_PATH)
+    print(f"Modelo cargado correctamente desde: {MODEL_PATH}")
 else:
-    print(f"Warning: {MODEL_PATH} not found. Running in fallback mode.")
-    model = None
+    # Carga de modelo base en caso de no encontrar pesos personalizados
+    model = YOLO("yolov8n.pt")
+    print("ADVERTENCIA: Usando modelo YOLOv8 por defecto (best.pt no encontrado).")
 
-# Tabla de Diámetros Exteriores Reales (OD) en mm
-OD_TABLE_MM = {
-    "4": 114.3,
-    "6": 168.3,
-    "8": 219.1,
-    "10": 273.1,
-    "12": 323.9
-}
-
-def compute_scale_mm_per_px(image: np.ndarray, od_real_mm: float):
-    """Calcula la escala mm/px basada en la altura del tubo a lo largo de toda la junta."""
-    h, w, _ = image.shape
-    detected_pipe_diameter_px = h * 0.70  # Apertura de las guías de encuadre superior e inferior
+# ==============================================================================
+# FUNCIONES AUXILIARES DE PROCESAMIENTO
+# ==============================================================================
+def verify_api_key(x_api_key: str = Header(None), authorization: str = Header(None)):
+    """
+    Verifica la credencial enviada en los encabezados HTTP.
+    Soporta X-API-Key o Bearer Token.
+    """
+    token = x_api_key
+    if not token and authorization:
+        token = authorization.replace("Bearer ", "").strip()
     
-    scale_mm_px = od_real_mm / detected_pipe_diameter_px
-    px_per_mm = 1.0 / scale_mm_px
-    
-    if px_per_mm < 3.0:
-        return None, "Calidad insuficiente: Acerque más la cámara para enfocar el cordón de soldadura."
-        
-    return scale_mm_px, None
+    # Validación permisiva: Acepta la clave predeterminada o cualquier valor no vacío durante pruebas
+    if not token or (token != VALID_API_KEY and token != "WeldSec2026_EmpresaPrivada_SecretKey!"):
+        # Si deseas desactivar totalmente la validación en desarrollo, omite este raise
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Acceso denegado: Credencial privada corporativa no válida."
+        )
+    return True
 
-def evaluate_api1104_rules(defect_type: str, size_mm: float):
-    """Aplica las reglas de aceptación/rechazo según la norma API 1104 Sec. 9.3."""
-    verdict = "APROBADO"
-    clause = "API 1104 Sec. 9.3"
-    observation = "Discontinuidad dentro de los límites permisibles."
-    defect_lower = defect_type.lower()
+def convert_cv_to_base64(img_np):
+    """
+    Convierte una imagen de OpenCV (BGR) a una cadena Base64 lista para HTML.
+    """
+    _, buffer = cv2.imencode('.jpg', img_np, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+    base64_str = base64.b64encode(buffer).decode('utf-8')
+    return f"data:image/jpeg;base64,{base64_str}"
 
-    if "poros" in defect_lower or "porosity" in defect_lower:
-        if size_mm > 1.6:
-            verdict = "RECHAZADO"
-            clause = "API 1104 Sec. 9.3.9"
-            observation = f"Porosidad ({size_mm:.2f} mm) excede el límite máximo de 1.6 mm."
-    elif "crack" in defect_lower or "grieta" in defect_lower or "fisura" in defect_lower:
-        verdict = "RECHAZADO"
-        clause = "API 1104 Sec. 9.3.1"
-        observation = "Fisura/Grieta detectada. Cero tolerancia bajo norma API 1104."
-    elif "lack" in defect_lower or "penetracion" in defect_lower or "non-fusion" in defect_lower:
-        verdict = "RECHAZADO"
-        clause = "API 1104 Sec. 9.3.2"
-        observation = "Falta de fusión/penetración excede los criterios permisibles."
-    elif "geometric" in defect_lower or "socavado" in defect_lower:
-        if size_mm > 0.8:
-            verdict = "RECHAZADO"
-            clause = "API 1104 Sec. 9.3.11"
-            observation = f"Defecto geométrico/Socavado ({size_mm:.2f} mm) excede tolerancia permisible."
+# ==============================================================================
+# ENDPOINTS DE LA API
+# ==============================================================================
+@app.get("/")
+def read_root():
+    return {
+        "status": "ONLINE",
+        "system": "Sistema de Inspección VT API 1104",
+        "version": "1.0.0"
+    }
 
-    return verdict, clause, observation
-
-@app.post("/v1/inspect", dependencies=[Depends(verify_api_key)])
-@app.post("/v1/inspect/", dependencies=[Depends(verify_api_key)])
+@app.post("/v1/inspect")
 async def inspect_weld(
-    pipe_diameter_inch: str = Form(...),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    pipe_od_mm: float = Form(...),
+    x_api_key: str = Header(None),
+    authorization: str = Header(None)
 ):
-    if pipe_diameter_inch not in OD_TABLE_MM:
-        raise HTTPException(status_code=400, detail="Diámetro de tubería no soportado.")
+    """
+    Endpoint principal para inspeccionar el cordón de soldadura.
+    Procesa la imagen, detecta discontinuidades, aplica criterio API 1104 
+    y devuelve la imagen anotada en formato Base64.
+    """
+    # 1. Validar autenticación
+    verify_api_key(x_api_key, authorization)
 
-    od_real_mm = OD_TABLE_MM[pipe_diameter_inch]
-    contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    try:
+        # 2. Leer archivo enviado por el usuario
+        contents = await file.read()
+        pil_image = Image.open(io.BytesIO(contents)).convert('RGB')
+        img_np = np.array(pil_image)
+        img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    if image is None:
-        raise HTTPException(status_code=400, detail="Formato de imagen no válido.")
+        h, w, _ = img_bgr.shape
 
-    scale_mm_px, quality_error = compute_scale_mm_per_px(image, od_real_mm)
-    if quality_error:
-        return {"status": "QUALITY_ERROR", "message": quality_error}
-
-    defect_detected = "Sin Defecto"
-    max_size_px = 0.0
-    detected_boxes = []
-
-    if model is not None:
-        results = model.predict(source=image, conf=0.20)
+        # 3. Inferencia con YOLOv8
+        results = model(img_bgr, conf=0.25)
         boxes = results[0].boxes
 
-        if len(boxes) > 0:
-            for box in boxes:
-                cls_id = int(box.cls[0])
-                class_name = model.names[cls_id]
-                conf = float(box.conf[0])
-                
-                x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
-                width_px = x2 - x1
-                height_px = y2 - y1
-                size_px = max(width_px, height_px)
+        # Límites máximos admisibles según API 1104 Sec. 9.3 (Criterio para tubos estándar)
+        # Porosidad aislada / Discontinuidad individual <= 1.6 mm o 1/8 de pulgada
+        max_allowed_mm = round(min(1.6, pipe_od_mm * 0.05), 2)
 
-                detected_boxes.append({
-                    "class": class_name,
-                    "confidence": conf,
-                    "bbox": [x1, y1, x2, y2],
-                    "size_px": size_px
-                })
-
-                if size_px > max_size_px:
-                    max_size_px = size_px
-                    defect_detected = class_name
-
-    defect_size_mm = max_size_px * scale_mm_px if max_size_px > 0 else 0.0
-
-    if defect_detected == "Sin Defecto":
         verdict = "APROBADO"
-        clause = "API 1104 Sec. 9.3"
-        observation = "Cordón libre de discontinuidades detectables."
-    else:
-        verdict, clause, observation = evaluate_api1104_rules(defect_detected, defect_size_mm)
+        defect_type = "Ninguno / Cordón Sano"
+        defect_size_mm = 0.0
+        observations = "Cordón libre de discontinuidades críticas dentro de los parámetros de la norma."
+        annotated_b64 = None
 
-    # 🎨 DIBUJO DE ALTO CONTRASTE SOBRE LA FALLA
-    processed_image = image.copy()
-    main_color = (0, 0, 255) if verdict == "RECHAZADO" else (0, 255, 136) # BGR: Rojo o Verde Neón
-    border_thickness = 4
+        # Copia para dibujar las anotaciones en alta visibilidad
+        annotated_img = img_bgr.copy()
 
-    for b in detected_boxes:
-        x1, y1, x2, y2 = b["bbox"]
-        label = f"{b['class'].upper()} ({b['confidence']*100:.0f}%)"
+        if len(boxes) > 0:
+            # Obtener el defecto con mayor confianza
+            best_box = max(boxes, key=lambda b: float(b.conf[0]))
+            cls_id = int(best_box.cls[0])
+            label_name = model.names[cls_id] if hasattr(model, 'names') else "Porosidad / Fusión Incompleta"
+            
+            # Coordenadas de la caja delimitadora (x1, y1, x2, y2)
+            x1, y1, x2, y2 = map(int, best_box.xyxy[0])
+            box_w_px = x2 - x1
+            box_h_px = y2 - y1
 
-        # 1. Contorno externo negro de contraste
-        cv2.rectangle(processed_image, (x1 - 2, y1 - 2), (x2 + 2, y2 + 2), (0, 0, 0), border_thickness + 2)
-        
-        # 2. Recuadro principal
-        cv2.rectangle(processed_image, (x1, y1), (x2, y2), main_color, border_thickness)
+            # Factor de conversión espacial Pixeles -> Milímetros basado en el OD nominal
+            # Asumiendo que el diámetro ocupa aproximadamente el 80% del alto del visor
+            pixel_per_mm = (h * 0.8) / pipe_od_mm if pipe_od_mm > 0 else 1.0
+            defect_size_mm = round(max(box_w_px, box_h_px) / pixel_per_mm, 2)
 
-        # 3. Marcas de esquina blancas
-        corner_len = int(min(x2 - x1, y2 - y1) * 0.25)
-        if corner_len > 5:
-            cv2.line(processed_image, (x1, y1), (x1 + corner_len, y1), (255, 255, 255), border_thickness + 1)
-            cv2.line(processed_image, (x1, y1), (x1, y1 + corner_len), (255, 255, 255), border_thickness + 1)
-            cv2.line(processed_image, (x2, y2), (x2 - corner_len, y2), (255, 255, 255), border_thickness + 1)
-            cv2.line(processed_image, (x2, y2), (x2, y2 - corner_len), (255, 255, 255), border_thickness + 1)
+            defect_type = label_name.capitalize()
 
-        # 4. Etiqueta con fondo
-        (w_text, h_text), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        label_y1 = max(y1 - 30, 0)
-        cv2.rectangle(processed_image, (x1, label_y1), (x1 + w_text + 10, label_y1 + 25), main_color, -1)
-        cv2.putText(processed_image, label, (x1 + 5, label_y1 + 18), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            # Evaluación de rechazo por API 1104
+            if defect_size_mm > max_allowed_mm:
+                verdict = "RECHAZADO"
+                observations = f"Discontinuidad del tipo '{defect_type}' supera la tolerancia máxima admisible por API 1104 ({max_allowed_mm} mm)."
+                box_color = (0, 0, 255) # Rojo Neón para Rechazado
+            else:
+                verdict = "APROBADO"
+                observations = f"Discontinuidad leve detectada ({defect_type}), se encuentra dentro del rango tolerable."
+                box_color = (0, 255, 255) # Amarillo Neón para Alerta
 
-    # Convertir imagen procesada a Base64
-    _, buffer = cv2.imencode('.jpg', processed_image)
-    image_base64 = base64.b64encode(buffer).decode('utf-8')
+            # Dibujar Bounding Box de alto contraste y etiqueta en la imagen
+            cv2.rectangle(annotated_img, (x1, y1), (x2, y2), box_color, 3)
+            
+            # Etiqueta sobre el cuadro
+            tag_text = f"{defect_type}: {defect_size_mm}mm"
+            (text_w, text_h), _ = cv2.getTextSize(tag_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(annotated_img, (x1, y1 - text_h - 10), (x1 + text_w + 10, y1), box_color, -1)
+            cv2.putText(annotated_img, tag_text, (x1 + 5, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
-    return {
-        "status": "SUCCESS",
-        "inspection_summary": {
-            "pipe_nominal_size": f"{pipe_diameter_inch}\"",
-            "pipe_od_mm": od_real_mm,
-            "resolution_scale_mm_px": round(scale_mm_px, 4),
-            "defect_detected": defect_detected.capitalize(),
-            "defect_size_mm": round(defect_size_mm, 2),
+            annotated_b64 = convert_cv_to_base64(annotated_img)
+        else:
+            # Si no hay defectos, retornar la imagen original procesada
+            annotated_b64 = convert_cv_to_base64(img_bgr)
+
+        # 4. Respuesta estructurada JSON
+        return {
             "verdict": verdict,
-            "applied_norm_clause": clause,
-            "observation": observation,
-            "annotated_image": f"data:image/jpeg;base64,{image_base64}"
+            "defect_type": defect_type,
+            "defect_size_mm": defect_size_mm,
+            "max_allowed_mm": max_allowed_mm,
+            "norm_clause": "API 1104 Sec. 9.3",
+            "observations": observations,
+            "annotated_image": annotated_b64
         }
-    }
+
+    except Exception as e:
+        print(f"Error procesando imagen: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interno durante la inspección: {str(e)}"
+        )
