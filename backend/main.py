@@ -6,15 +6,16 @@ from ultralytics import YOLO
 import os
 
 app = FastAPI(
-    title="API 1104 Weld Inspection System",
+    title="API 1104 Sistema de inspeccion de soldadura",
     description="Sistema de inspección visual de soldadura de tuberías bajo norma API 1104",
     version="1.0.0"
 )
 
 # Permitir solicitudes CORS desde la App Móvil / Frontend
+# 🔒 CONFIGURACIÓN DE CORS PERMISIVA PARA NAVEGADORES MÓVILES Y VERCEL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Permite peticiones desde cualquier subdominio de Vercel o móvil
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
