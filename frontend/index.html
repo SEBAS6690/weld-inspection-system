@@ -274,6 +274,24 @@
         </div>
     </div>
 
+    <!-- Formulario de Exportación en el Panel de Resultados -->
+<div id="pdfModal" class="pdf-modal" style="display: none;">
+  <div class="modal-content">
+    <h3>📄 Generar Reporte PDF API 1104</h3>
+    
+    <label>Nombre del Inspector:</label>
+    <input type="text" id="inspectorName" placeholder="Ej: Ing. Víctor Yánez" class="styled-input">
+    
+    <label>Tag / Identificador de Tubería:</label>
+    <input type="text" id="pipeTag" placeholder="Ej: TUB-LINE-01-A" class="styled-input">
+
+    <div class="modal-actions">
+      <button onclick="downloadPDF()" class="primary-btn export-btn">📥 Descargar Reporte PDF</button>
+      <button onclick="closePdfModal()" class="secondary-btn">Cancelar</button>
+    </div>
+  </div>
+</div>
+
     <script src="app.js"></script>
 </body>
 </html>

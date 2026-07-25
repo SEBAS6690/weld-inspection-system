@@ -9,6 +9,11 @@ from PIL import Image
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
+from fastapi import Response
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 os.environ["YOLO_CONFIG_DIR"] = "/tmp/Ultralytics"
 torch.set_num_threads(2)
@@ -135,3 +140,112 @@ async def inspect_weld(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error en el servidor: {str(e)}"
         )
+    @app.post("/v1/export-pdf")
+async def export_pdf_report(
+    inspector_name: str = Form(...),
+    inspection_time: str = Form(...),
+    pipe_tag: str = Form(...),
+    pipe_od_mm: float = Form(...),
+    camera_resolution: str = Form(...),
+    pixel_per_mm: float = Form(...),
+    verdict: str = Form(...),
+    defect_type: str = Form(...),
+    defect_size_mm: float = Form(...),
+    max_allowed_mm: float = Form(...),
+    observations: str = Form(...),
+    annotated_image_b64: str = Form(...)
+):
+    """
+    Genera un reporte oficial de inspección VT en formato PDF según API 1104.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
+    )
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#0b0f19'), alignment=1, spaceAfter=12)
+    header_style = ParagraphStyle('HeaderStyle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#555555'), alignment=1)
+    label_style = ParagraphStyle('LabelStyle', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold')
+    value_style = ParagraphStyle('ValueStyle', parent=styles['Normal'], fontSize=9)
+    
+    story = []
+
+    # 1. ENCABEZADO Y MEMBRETE
+    story.append(Paragraph("<b>REPORTE TÉCNICO DE INSPECCIÓN VISUAL (VT) - API 1104</b>", title_style))
+    story.append(Paragraph("Evaluación Digital de Soldadura asistida por Inteligencia Artificial (YOLOv8)", header_style))
+    story.append(Spacer(1, 15))
+
+    # 2. TABLA DE DATOS DEL INSPECTOR Y TUBERÍA
+    data_general = [
+        [Paragraph("Inspector / Operador:", label_style), Paragraph(inspector_name, value_style), Paragraph("Fecha / Hora:", label_style), Paragraph(inspection_time, value_style)],
+        [Paragraph("Tag / ID Tubería:", label_style), Paragraph(pipe_tag, value_style), Paragraph("Diámetro Ext. (OD):", label_style), Paragraph(f"{pipe_od_mm} mm", value_style)],
+        [Paragraph("Norma de Evaluación:", label_style), Paragraph("API 1104 Sec. 9.3", value_style), Paragraph("Criterio Máx. Admisible:", label_style), Paragraph(f"{max_allowed_mm} mm", value_style)]
+    ]
+    t_general = Table(data_general, colWidths=[130, 140, 130, 140])
+    t_general.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F5F7FA')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D0D7DE')),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_general)
+    story.append(Spacer(1, 15))
+
+    # 3. IMAGEN ANOTADA DE LA INSPECCIÓN
+    if "," in annotated_image_b64:
+        annotated_image_b64 = annotated_image_b64.split(",")[1]
+    
+    img_data = base64.b64decode(annotated_image_b64)
+    img_io = io.BytesIO(img_data)
+    
+    # Insertar imagen ajustada al ancho de página
+    report_img = RLImage(img_io, width=420, height=236)
+    story.append(report_img)
+    story.append(Spacer(1, 15))
+
+    # 4. TABLA DE RESULTADOS DE LA IA
+    verdict_color = colors.HexColor('#008744') if verdict == "APROBADO" else colors.HexColor('#D62D20')
+    verdict_style = ParagraphStyle('VerdictStyle', parent=styles['Normal'], fontSize=11, fontName='Helvetica-Bold', textColor=verdict_color)
+
+    data_results = [
+        [Paragraph("Veredicto Final:", label_style), Paragraph(verdict, verdict_style)],
+        [Paragraph("Tipo de Discontinuidad:", label_style), Paragraph(defect_type, value_style)],
+        [Paragraph("Tamaño Calculado:", label_style), Paragraph(f"{defect_size_mm} mm", value_style)],
+        [Paragraph("Observaciones del Sistema:", label_style), Paragraph(observations, value_style)]
+    ]
+    t_results = Table(data_results, colWidths=[150, 390])
+    t_results.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D0D7DE')),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#EEF2F6')),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_results)
+    story.append(Spacer(1, 15))
+
+    # 5. DETALLES TÉCNICOS DE CÁMARA Y CÁLCULOS
+    story.append(Paragraph("<b>Detalles Técnicos de Captura y Calibración Metrológica:</b>", label_style))
+    story.append(Spacer(1, 5))
+    
+    data_tech = [
+        [Paragraph("Resolución del Sensor:", label_style), Paragraph(camera_resolution, value_style)],
+        [Paragraph("Factor de Escala (Píxel/mm):", label_style), Paragraph(f"{round(pixel_per_mm, 3)} px/mm", value_style)],
+        [Paragraph("Fórmula de Escalamiento:", label_style), Paragraph("Pixel_per_mm = (Alto_PX * 0.8) / OD_mm", value_style)]
+    ]
+    t_tech = Table(data_tech, colWidths=[150, 390])
+    t_tech.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E1E4E8')),
+        ('PADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(t_tech)
+
+    # Construir PDF
+    doc.build(story)
+    buffer.seek(0)
+    
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Reporte_VT_{pipe_tag}.pdf"}
+    )

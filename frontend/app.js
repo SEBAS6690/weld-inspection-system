@@ -156,3 +156,69 @@ document.addEventListener('DOMContentLoaded', () => {
         captureBtn.onclick = processInspection;
     }
 });
+
+// Variable global para guardar los datos de la última inspección realizada
+let lastInspectionResult = null;
+
+// Llamar al endpoint de PDF al hacer clic en Exportar
+async function downloadPDF() {
+    const inspectorName = document.getElementById("inspectorName").value.trim() || "Inspector No Registrado";
+    const pipeTag = document.getElementById("pipeTag").value.trim() || "TAG-S/N";
+    
+    const videoElement = document.getElementById("webcamFeed");
+    const cameraResolution = `${videoElement.videoWidth || 1280}x${videoElement.videoHeight || 720} px`;
+    
+    const now = new Date();
+    const inspectionTime = now.toLocaleString("es-EC");
+
+    // Construir FormData con los resultados actuales y los datos del formulario
+    const formData = new FormData();
+    formData.append("inspector_name", inspectorName);
+    formData.append("inspection_time", inspectionTime);
+    formData.append("pipe_tag", pipeTag);
+    formData.append("pipe_od_mm", document.getElementById("pipeOd").value);
+    formData.append("camera_resolution", cameraResolution);
+    
+    // Cálculo del factor píxel/mm
+    const h = videoElement.videoHeight || 720;
+    const pipeOd = parseFloat(document.getElementById("pipeOd").value);
+    const pixelPerMm = (h * 0.8) / pipeOd;
+    formData.append("pixel_per_mm", pixelPerMm);
+
+    // Datos del resultado del análisis
+    formData.append("verdict", lastInspectionResult.verdict);
+    formData.append("defect_type", lastInspectionResult.defect_type);
+    formData.append("defect_size_mm", lastInspectionResult.defect_size_mm);
+    formData.append("max_allowed_mm", lastInspectionResult.max_allowed_mm);
+    formData.append("observations", lastInspectionResult.observations);
+    formData.append("annotated_image_b64", lastInspectionResult.annotated_image);
+
+    try {
+        const response = await fetch("https://tu-backend.onrender.com/v1/export-pdf", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) throw new Error("Error generando PDF");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Reporte_VT_${pipeTag}_${Date.now()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        closePdfModal();
+    } catch (error) {
+        alert("Error al descargar el PDF: " + error.message);
+    }
+}
+
+function openPdfModal() {
+    document.getElementById("pdfModal").style.display = "flex";
+}
+
+function closePdfModal() {
+    document.getElementById("pdfModal").style.display = "none";
+}
