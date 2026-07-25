@@ -95,6 +95,32 @@
             object-fit: cover;
         }
 
+        /* GUÍAS VISUALES DE ALINEACIÓN DE TUBERÍA Y CORDÓN */
+        .overlay-guide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            box-sizing: border-box;
+            border-top: 3px dashed #ffee00;
+            border-bottom: 3px dashed #ffee00;
+            box-shadow: inset 0 0 10px rgba(255, 238, 0, 0.3);
+        }
+
+        .weld-zone {
+            position: absolute;
+            top: 0;
+            left: 35%;
+            width: 30%;
+            height: 100%;
+            border-left: 2px dashed #00ffcc;
+            border-right: 2px dashed #00ffcc;
+            background: rgba(0, 255, 204, 0.05);
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
+        }
+
         .btn-capture {
             width: 100%;
             padding: 14px;
@@ -117,7 +143,7 @@
 
         /* Sección de Resultados */
         #resultsSection {
-            display: none; /* Oculto hasta recibir la respuesta */
+            display: none;
         }
 
         .results-card {
@@ -201,12 +227,16 @@
 
             <div class="video-container">
                 <video id="webcamFeed" autoplay playsinline muted></video>
+                <!-- Guías de Alineación Restauradas -->
+                <div class="overlay-guide">
+                    <div class="weld-zone"></div>
+                </div>
             </div>
 
             <button id="captureBtn" class="btn-capture">📸 CAPTURAR E INSPECCIONAR</button>
         </div>
 
-        <!-- Tarjeta de Resultados (Se activa tras el análisis) -->
+        <!-- Tarjeta de Resultados -->
         <div id="resultsSection">
             <div id="resultsCard" class="card results-card">
                 <div class="verdict-header">
@@ -239,7 +269,6 @@
                     <p id="resObservations" style="margin:4px 0 0 0;">-</p>
                 </div>
 
-                <!-- Imagen anotada devuelta por OpenCV -->
                 <div id="resultImageContainer"></div>
             </div>
         </div>
