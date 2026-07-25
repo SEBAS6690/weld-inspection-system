@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://tu-backend.onrender.com";
+const BACKEND_URL = "https://weld-inspection-system.onrender.com";
 let lastInspectionResult = null;
 
 async function startCamera() {
