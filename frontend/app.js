@@ -120,7 +120,7 @@ async function processInspection() {
 
         // Petición con timeout manual de 20 segundos
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
 
         const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
             method: "POST",
