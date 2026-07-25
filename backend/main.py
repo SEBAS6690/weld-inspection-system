@@ -71,7 +71,7 @@ async def inspect_weld(
         h, w, _ = img_bgr.shape
 
         with torch.no_grad():
-            results = model(img_bgr, conf=0.15, imgsz=480)
+            results = model(img_bgr, conf=0.05, imgsz=320)
         
         boxes = results[0].boxes
         max_allowed_mm = round(min(1.6, pipe_od_mm * 0.05), 2)
