@@ -2,47 +2,62 @@ const BACKEND_URL = "https://weld-inspection-system.onrender.com";
 let lastInspectionResult = null;
 
 async function startCamera() {
+    const videoElement = document.getElementById("webcamFeed");
+
+    // Configuración progresiva: pide Full HD/4K ideal pero sin rechazar la cámara si no lo soporta
+    const constraints = {
+        video: {
+            facingMode: { ideal: "environment" }, // Prioriza cámara trasera principal
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 }
+        },
+        audio: false
+    };
+
     try {
-        const videoElement = document.getElementById("webcamFeed");
-
-        // Configuración para forzar máxima resolución, enfoque continuo y alta tasa de cuadros
-        const constraints = {
-            video: {
-                facingMode: { ideal: "environment" }, // Prioriza la cámara trasera principal
-                width: { ideal: 3840, min: 1920 },    # Solicita 4K o Full HD como mínimo
-                height: { ideal: 2160, min: 1080 },
-                focusMode: { ideal: "continuous" },   // Fuerza autoenfoque continuo
-                frameRate: { ideal: 30 }
-            },
-            audio: false
-        };
-
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
 
-        // Activar funciones avanzadas de hardware (Autoenfoque y Antiantorcha) si el celular las soporta
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-
-        // Forzar enfoque continuo en navegadores compatibles (Chrome en Android)
-        if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
-            await track.applyConstraints({
-                advanced: [{ focusMode: "continuous" }]
-            });
+        // Intentar aplicar autoenfoque continuo en navegadores Android compatibles
+        try {
+            const track = stream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+            if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
+                await track.applyConstraints({
+                    advanced: [{ focusMode: "continuous" }]
+                });
+            }
+        } catch (e) {
+            console.log("Autoenfoque avanzado no disponible, usando modo por defecto.");
         }
 
-        // Esperar a que carguen los metadatos para obtener las dimensiones reales
         await new Promise((resolve) => {
             videoElement.onloadedmetadata = () => resolve();
         });
 
         await videoElement.play();
-        console.log(`📷 Cámara iniciada a resolución nativa: ${videoElement.videoWidth}x${videoElement.videoHeight}px`);
+        console.log(`📷 Cámara iniciada a: ${videoElement.videoWidth}x${videoElement.videoHeight}px`);
 
     } catch (error) {
-        console.error("Error al acceder a la cámara con alta resolución:", error);
-        // Fallback básico en caso de que el celular rechace 4K/1080p
+        console.warn("Fallo con resolución 1080p, aplicando fallback estándar:", error);
+        // Fallback básico para garantizar que SIEMPRE abra la cámara
         fallbackCamera();
+    }
+}
+
+// Respaldo de emergencia en caso de restricciones de hardware
+async function fallbackCamera() {
+    try {
+        const videoElement = document.getElementById("webcamFeed");
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+        });
+        videoElement.srcObject = stream;
+        await videoElement.play();
+    } catch (err) {
+        alert("No se pudo acceder a la cámara. Por favor verifica que diste permisos de cámara en el navegador.");
     }
 }
 
