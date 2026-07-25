@@ -1,117 +1,112 @@
 /* ==========================================================================
-   ESTILOS PRINCIPALES - SISTEMA DE INSPECCIÓN VT API 1104
+   SISTEMA DE INSPECCIÓN VISUAL VT API 1104 - HOJA DE ESTILOS CSS
    ========================================================================== */
 
 :root {
-    --bg-dark: #0b0f19;
-    --card-bg: #151c2e;
-    --accent-green: #00ff88;
-    --accent-red: #ff3366;
-    --accent-yellow: #ffcc00;
-    --text-primary: #ffffff;
-    --text-secondary: #8a99ad;
-    --border-color: #232d42;
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --accent-yellow: #ffee00;
+    --accent-cyan: #00ffcc;
+    --border-color: #334155;
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-primary);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 16px;
     display: flex;
     justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    padding: 10px;
+    box-sizing: border-box;
 }
 
-.app-container {
+.container {
     width: 100%;
     max-width: 500px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 15px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 /* Encabezado Principal */
-.app-header {
+.header {
     text-align: center;
-    margin-bottom: 15px;
 }
 
-.logo-title h1 {
-    font-size: 1.2rem;
+.header h1 {
+    font-size: 1.3rem;
     color: var(--accent-green);
-    letter-spacing: 1px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
-.subtitle {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-top: 4px;
-}
-
-.icon-glow {
-    font-size: 1.8rem;
-    color: var(--accent-green);
-    margin-bottom: 6px;
-}
-
-/* Controles de Selección */
-.controls-section {
-    margin-bottom: 15px;
-}
-
-.controls-section label {
-    display: block;
+.header p {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: var(--text-sub);
+    margin: 4px 0 0 0;
+}
+
+/* Tarjetas y Contenedores */
+.card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+label {
+    font-size: 0.85rem;
+    color: var(--text-sub);
     margin-bottom: 6px;
+    display: block;
 }
 
 .styled-select {
     width: 100%;
     padding: 10px;
-    background: var(--bg-dark);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
     border-radius: 8px;
+    background-color: #0f172a;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
     font-size: 0.95rem;
+    box-sizing: border-box;
+    margin-bottom: 12px;
     outline: none;
 }
 
-/* Visor de Cámara y Overlay Grid */
-.viewport-section {
-    width: 100%;
+.styled-select:focus {
+    border-color: var(--accent-green);
 }
 
-.video-wrapper {
+/* Contenedor del Visor de Cámara y Guía */
+.video-container {
     position: relative;
     width: 100%;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
-    background: #000;
-    border: 1px solid var(--border-color);
-    aspect-ratio: 4 / 3;
+    background-color: #000;
+    aspect-ratio: 4/3;
 }
 
-#webcamFeed {
+/* Ajuste 1:1 sin recorte de zoom */
+video {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Muestra el sensor nativo completo sin recortar bordes */
-    display: block;
-    background: #000;
+    object-fit: contain;
+    background-color: #000;
 }
 
-/* Capa Sobrepuesta (Cubre exactamente todo el video) */
-.overlay-grid {
+/* Guías Neón para Alineación de Junta y Tubería */
+.overlay-guide {
     position: absolute;
     top: 0;
     left: 0;
@@ -119,160 +114,115 @@ body {
     height: 100%;
     pointer-events: none;
     box-sizing: border-box;
+    border-top: 3px dashed var(--accent-yellow);
+    border-bottom: 3px dashed var(--accent-yellow);
+    box-shadow: inset 0 0 10px rgba(255, 238, 0, 0.3);
 }
 
-/* Marco Periférico Completo (Pegado 100% a los bordes laterales absolutos) */
-.pipe-outer-frame {
+.weld-zone {
     position: absolute;
-    top: 10%;    /* Límite superior del diámetro de la tubería */
-    bottom: 10%; /* Límite inferior del diámetro de la tubería */
-    left: 0;     /* Pegado 100% al borde izquierdo sin espacios */
-    right: 0;    /* Pegado 100% al borde derecho sin espacios */
-    border: 3px dashed var(--accent-yellow);
-    box-shadow: 0 0 12px rgba(255, 204, 0, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
+    top: 0;
+    left: 35%;
+    width: 30%;
+    height: 100%;
+    border-left: 2px dashed var(--accent-cyan);
+    border-right: 2px dashed var(--accent-cyan);
+    background: rgba(0, 255, 204, 0.05);
+    box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
 }
 
-/* Recuadro Verde Vertical de la Soldadura */
-.weld-roi-box {
-    width: 25%;
-    height: 100%; /* Va de la línea amarilla superior a la inferior */
-    border: 2px dashed var(--accent-green);
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
-}
-
-/* Botón de Captura */
-.primary-btn {
+/* Botón de Acción */
+.btn-capture {
     width: 100%;
-    margin-top: 15px;
     padding: 14px;
-    background: var(--accent-green);
-    color: #000;
+    border-radius: 8px;
     border: none;
-    border-radius: 10px;
+    background-color: var(--accent-green);
+    color: #000;
     font-weight: bold;
     font-size: 1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 12px;
 }
 
-.primary-btn:active {
+.btn-capture:active {
     transform: scale(0.98);
 }
 
-.primary-btn:disabled {
-    background: #3a4b5c;
-    color: #8a99ad;
+.btn-capture:disabled {
+    background-color: #475569;
+    color: #94a3b8;
     cursor: not-allowed;
+    transform: none;
 }
 
-/* Panel de Resultados */
-.results-section {
-    margin-top: 20px;
+/* Sección e Informe de Resultados */
+#resultsSection {
+    display: none;
 }
 
 .results-card {
-    background: var(--bg-dark);
-    border: 1px solid var(--accent-green);
-    border-radius: 12px;
-    padding: 15px;
+    border-left: 6px solid var(--accent-green);
 }
 
 .results-card.rejected {
-    border-color: var(--accent-red);
+    border-left-color: var(--accent-red);
 }
 
-.card-header {
+.verdict-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
 }
 
-.card-header h2 {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
 .verdict-badge {
-    padding: 4px 10px;
-    border-radius: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
     font-weight: bold;
-    font-size: 0.85rem;
-}
-
-.verdict-badge.approved {
-    background: rgba(0, 255, 136, 0.2);
+    font-size: 0.9rem;
+    background-color: rgba(16, 185, 129, 0.2);
     color: var(--accent-green);
 }
 
 .verdict-badge.rejected {
-    background: rgba(255, 51, 102, 0.2);
+    background-color: rgba(239, 68, 68, 0.2);
     color: var(--accent-red);
 }
 
-/* Imagen Analizada con Defecto Enmarcado */
-.result-image-container {
-    margin: 15px 0;
-    text-align: center;
+.data-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.9rem;
 }
 
-.result-image-container h3 {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
+.data-row:last-child {
+    border-bottom: none;
+}
+
+.data-label {
+    color: var(--text-sub);
+}
+
+.data-value {
+    font-weight: 600;
+}
+
+.obs-box {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #cbd5e1;
 }
 
 .annotated-image {
     width: 100%;
-    max-width: 100%;
     border-radius: 8px;
-    border: 2px solid var(--accent-green);
-    display: block;
-    background: #000;
-}
-
-/* Ficha Técnica de Resultados */
-.details-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 12px;
-}
-
-.detail-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.detail-item.full-width {
-    grid-column: span 2;
-}
-
-.detail-item .label {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
-
-.detail-item .value {
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.value.highlight {
-    color: var(--accent-green);
-}
-
-.value.code-text {
-    font-family: monospace;
-    color: var(--accent-yellow);
-}
-
-.value.text-obs {
-    font-size: 0.8rem;
-    color: var(--text-primary);
+    margin-top: 10px;
+    border: 1px solid var(--border-color);
 }
