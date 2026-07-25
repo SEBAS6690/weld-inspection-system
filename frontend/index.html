@@ -3,300 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Inspección VT - API 1104</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --border-color: #334155;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 16px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .header {
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 1.3rem;
-            color: var(--accent-green);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .header p {
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            margin: 4px 0 0 0;
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-        }
-
-        label {
-            font-size: 0.85rem;
-            color: var(--text-sub);
-            margin-bottom: 6px;
-            display: block;
-        }
-
-        .styled-select {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            background-color: #0f172a;
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-            font-size: 0.95rem;
-            box-sizing: border-box;
-            margin-bottom: 12px;
-        }
-
-        .video-container {
-            position: relative;
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: #000;
-            aspect-ratio: 4/3;
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* GUÍAS VISUALES DE ALINEACIÓN DE TUBERÍA Y CORDÓN */
-        .overlay-guide {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            box-sizing: border-box;
-            border-top: 3px dashed #ffee00;
-            border-bottom: 3px dashed #ffee00;
-            box-shadow: inset 0 0 10px rgba(255, 238, 0, 0.3);
-        }
-
-        .weld-zone {
-            position: absolute;
-            top: 0;
-            left: 35%;
-            width: 30%;
-            height: 100%;
-            border-left: 2px dashed #00ffcc;
-            border-right: 2px dashed #00ffcc;
-            background: rgba(0, 255, 204, 0.05);
-            box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
-        }
-
-        .btn-capture {
-            width: 100%;
-            padding: 14px;
-            border-radius: 8px;
-            border: none;
-            background-color: var(--accent-green);
-            color: #000;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s;
-            margin-top: 12px;
-        }
-
-        .btn-capture:disabled {
-            background-color: #475569;
-            color: #94a3b8;
-            cursor: not-allowed;
-        }
-
-        /* Sección de Resultados */
-        #resultsSection {
-            display: none;
-        }
-
-        .results-card {
-            border-left: 6px solid var(--accent-green);
-        }
-
-        .results-card.rejected {
-            border-left-color: var(--accent-red);
-        }
-
-        .verdict-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .verdict-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-            background-color: rgba(16, 185, 129, 0.2);
-            color: var(--accent-green);
-        }
-
-        .verdict-badge.rejected {
-            background-color: rgba(239, 68, 68, 0.2);
-            color: var(--accent-red);
-        }
-
-        .data-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 0.9rem;
-        }
-
-        .data-row:last-child {
-            border-bottom: none;
-        }
-
-        .data-label {
-            color: var(--text-sub);
-        }
-
-        .data-value {
-            font-weight: 600;
-        }
-
-        .obs-box {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            color: #cbd5e1;
-        }
-    </style>
+    <title>Sistema de Inspección VT API 1104</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-title">
+                <div class="icon-glow">🔬</div>
+                <h1>INSPECCIÓN VISUAL VT</h1>
+            </div>
+            <p class="subtitle">Evaluación Automática API 1104 - Sec. 9.3</p>
+        </header>
 
-    <div class="container">
-        <!-- Encabezado -->
-        <div class="header">
-            <h1>🔬 INSPECCIÓN VT - API 1104</h1>
-            <p>Alinee el cordón de soldadura dentro de la guía</p>
-        </div>
-
-        <!-- Panel de Cámara y Parámetros -->
-        <div class="card">
-            <label for="pipeDiameter">📏 Diámetro Nominal de Tubería (OD):</label>
-            <select id="pipeDiameter" class="styled-select">
-                <option value="114.3">4" (OD: 114.3 mm)</option>
-                <option value="168.3">6" (OD: 168.3 mm)</option>
-                <option value="219.1">8" (OD: 219.1 mm)</option>
-                <option value="273.0">10" (OD: 273.0 mm)</option>
-                <option value="323.8">12" (OD: 323.8 mm)</option>
+        <section class="controls-section">
+            <label for="pipeOd">Diámetro Exterior de Tubería (OD):</label>
+            <select id="pipeOd" class="styled-select">
+                <option value="60.3">2" (60.3 mm)</option>
+                <option value="88.9">3" (88.9 mm)</option>
+                <option value="114.3" selected>4" (114.3 mm)</option>
+                <option value="168.3">6" (168.3 mm)</option>
+                <option value="219.1">8" (219.1 mm)</option>
             </select>
+        </section>
 
-            <div class="video-container">
+        <section class="viewport-section">
+            <div class="video-wrapper">
                 <video id="webcamFeed" autoplay playsinline muted></video>
-                <!-- Guías de Alineación Restauradas -->
-                <div class="overlay-guide">
-                    <div class="weld-zone"></div>
+                <div class="overlay-grid">
+                    <div class="pipe-outer-frame">
+                        <div class="weld-roi-box"></div>
+                    </div>
                 </div>
             </div>
+            <button id="btnCapture" class="primary-btn" onclick="takeInspectionPhoto()">📸 ANALIZAR JUNTA</button>
+        </section>
 
-            <button id="captureBtn" class="btn-capture">📸 CAPTURAR E INSPECCIONAR</button>
-        </div>
-
-        <!-- Tarjeta de Resultados -->
-        <div id="resultsSection">
-            <div id="resultsCard" class="card results-card">
-                <div class="verdict-header">
-                    <h3 style="margin:0; font-size:1.1rem;">INFORME DE EVALUACIÓN</h3>
-                    <span id="verdictBadge" class="verdict-badge">APROBADO</span>
+        <section id="resultsSection" class="results-section" style="display: none;">
+            <div id="resultsCard" class="results-card">
+                <div class="card-header">
+                    <h2>RESULTADO DE LA EVALUACIÓN</h2>
+                    <span id="verdictBadge" class="verdict-badge">---</span>
                 </div>
 
-                <div class="data-row">
-                    <span class="data-label">Tipo de Discontinuidad:</span>
-                    <span id="resDefectType" class="data-value">-</span>
+                <div class="result-image-container">
+                    <h3>CAPTURA CON DETECCIÓN</h3>
+                    <img id="annotatedImage" class="annotated-image" src="" alt="Resultado de Inferencia">
                 </div>
 
-                <div class="data-row">
-                    <span class="data-label">Dimensión Medida:</span>
-                    <span id="resDefectSize" class="data-value">-</span>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span class="label">Discontinuidad:</span>
+                        <span id="defectType" class="value highlight">---</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Tamaño Calculado:</span>
+                        <span id="defectSize" class="value">---</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Tolerancia Máxima:</span>
+                        <span id="maxAllowed" class="value code-text">---</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Norma Aplicada:</span>
+                        <span id="normClause" class="value">API 1104 Sec. 9.3</span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <span class="label">Observaciones:</span>
+                        <span id="observations" class="value text-obs">---</span>
+                    </div>
                 </div>
 
-                <div class="data-row">
-                    <span class="data-label">Tolerancia Máxima Admisible:</span>
-                    <span id="resMaxAllowed" class="data-value">-</span>
-                </div>
+                <button id="btnOpenPdf" onclick="openPdfModal()" class="primary-btn" style="margin-top: 15px; background: #ffcc00; color: #000;">
+                    📄 GENERAR REPORTE PDF
+                </button>
+            </div>
+        </section>
+    </div>
 
-                <div class="data-row">
-                    <span class="data-label">Cláusula de Norma:</span>
-                    <span id="resNormClause" class="data-value">API 1104 Sec. 9.3</span>
-                </div>
+    <!-- Modal Formulario PDF -->
+    <div id="pdfModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: #151c2e; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #232d42;">
+            <h3 style="color: #00ff88; margin-bottom: 12px; font-size: 1.1rem;">📄 Generar Reporte PDF API 1104</h3>
+            
+            <label style="font-size: 0.8rem; color: #8a99ad; display: block; margin-top: 8px;">Nombre del Inspector:</label>
+            <input type="text" id="inspectorName" placeholder="Ej: Ing. Víctor Yánez" class="styled-select" style="margin-top: 4px;">
+            
+            <label style="font-size: 0.8rem; color: #8a99ad; display: block; margin-top: 8px;">Tag / Identificador Tubería:</label>
+            <input type="text" id="pipeTag" placeholder="Ej: TUB-LINE-01-A" class="styled-select" style="margin-top: 4px; margin-bottom: 15px;">
 
-                <div class="obs-box">
-                    <strong>Observaciones:</strong>
-                    <p id="resObservations" style="margin:4px 0 0 0;">-</p>
-                </div>
-
-                <div id="resultImageContainer"></div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="downloadPDF()" class="primary-btn" style="margin: 0;">📥 Descargar</button>
+                <button onclick="closePdfModal()" class="primary-btn" style="margin: 0; background: #232d42; color: #fff;">Cancelar</button>
             </div>
         </div>
     </div>
-
-    <!-- Botón para abrir el formulario PDF dentro del panel de resultados -->
-<button id="btnOpenPdf" onclick="openPdfModal()" class="primary-btn" style="margin-top: 10px; background-color: #ffcc00; color: #000; display: none;">
-  📄 Generar Reporte PDF
-</button>
-
-<!-- Ventana Modal de Exportación PDF -->
-<div id="pdfModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000;">
-  <div style="background: #151c2e; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #232d42;">
-    <h3 style="color: #00ff88; margin-bottom: 12px; font-size: 1.1rem;">📄 Reporte de Inspección VT</h3>
-    
-    <label style="font-size: 0.8rem; color: #8a99ad;">Nombre del Inspector:</label>
-    <input type="text" id="inspectorName" placeholder="Ej: Ing. Víctor Yánez" class="styled-select" style="margin-bottom: 10px;">
-    
-    <label style="font-size: 0.8rem; color: #8a99ad;">Tag / Identificador de Tubería:</label>
-    <input type="text" id="pipeTag" placeholder="Ej: TUB-LINE-01-A" class="styled-select" style="margin-bottom: 15px;">
-
-    <div style="display: flex; gap: 10px;">
-      <button onclick="downloadPDF()" class="primary-btn" style="margin: 0;">📥 Descargar PDF</button>
-      <button onclick="closePdfModal()" class="primary-btn" style="margin: 0; background: #232d42; color: #fff;">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 
     <script src="app.js"></script>
 </body>

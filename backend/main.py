@@ -10,19 +10,15 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response, st
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 
-# ReportLab para la generación del PDF técnico
+# ReportLab para la generación del PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-# Evitar advertencias de permisos en Render redirigiendo la configuración a /tmp
 os.environ["YOLO_CONFIG_DIR"] = "/tmp/Ultralytics"
-
-# Optimizar consumo de CPU en la nube
 torch.set_num_threads(2)
 
-# Parche de compatibilidad PyTorch 2.6+
 try:
     from ultralytics.nn.tasks import DetectionModel
     torch.serialization.add_safe_globals([DetectionModel])
@@ -30,11 +26,10 @@ except Exception:
     pass
 
 app = FastAPI(
-    title="API de Inspección VT de Soldadura - API 1104",
+    title="API Inspección VT API 1104",
     version="1.1.0"
 )
 
-# Habilitar CORS para permitir solicitudes desde el frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,7 +38,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cargar el modelo entrenado
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "weights", "best.pt")
 
 if os.path.exists(MODEL_PATH):
@@ -54,32 +48,28 @@ else:
     print("⚠️ ADVERTENCIA: 'best.pt' no encontrado. Cargando modelo nano por defecto.")
 
 def convert_cv_to_base64(img_np):
-    """Convierte una imagen OpenCV (BGR) a Base64 optimizada en JPEG."""
     _, buffer = cv2.imencode('.jpg', img_np, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
     base64_str = base64.b64encode(buffer).decode('utf-8')
     return f"data:image/jpeg;base64,{base64_str}"
 
 @app.get("/")
 def read_root():
-    return {"status": "ONLINE", "system": "Inspección VT API 1104 con Exportación PDF"}
+    return {"status": "ONLINE", "system": "Inspección VT API 1104"}
 
 @app.post("/v1/inspect")
 async def inspect_weld(
     file: UploadFile = File(...),
     pipe_od_mm: float = Form(...)
 ):
-    """Endpoint principal de análisis de soldadura con YOLOv8."""
     try:
         contents = await file.read()
         pil_image = Image.open(io.BytesIO(contents)).convert('RGB')
         
-        # Reducción a máximo 800px para mantener la velocidad en servidores sin GPU
         pil_image.thumbnail((800, 800))
         img_np = np.array(pil_image)
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
         h, w, _ = img_bgr.shape
 
-        # Inferencia rápida (imgsz=480)
         with torch.no_grad():
             results = model(img_bgr, conf=0.15, imgsz=480)
         
@@ -119,7 +109,6 @@ async def inspect_weld(
                 observations = f"Discontinuidad detectada: '{defect_type}' ({defect_size_mm} mm, Confianza: {int(conf_val*100)}%). Supera tolerancia API 1104 Sec. 9.3 ({max_allowed_mm} mm)."
                 box_color = (0, 0, 255)
 
-            # Dibujar el marco de la falla
             cv2.rectangle(annotated_img, (x1, y1), (x2, y2), box_color, 3)
             tag_text = f"{defect_type}: {defect_size_mm}mm ({int(conf_val*100)}%)"
             (text_w, text_h), _ = cv2.getTextSize(tag_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
@@ -142,12 +131,9 @@ async def inspect_weld(
         }
 
     except Exception as e:
-        print(f"Error procesando la imagen: {str(e)}")
+        print(f"Error procesando imagen: {str(e)}")
         gc.collect()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error en el servidor: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/v1/export-pdf")
 async def export_pdf_report(
@@ -164,14 +150,9 @@ async def export_pdf_report(
     observations: str = Form(...),
     annotated_image_b64: str = Form(...)
 ):
-    """Genera un reporte técnico de inspección VT en PDF."""
     try:
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=letter,
-            rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
-        )
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
         
         styles = getSampleStyleSheet()
         title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=15, textColor=colors.HexColor('#0b0f19'), alignment=1, spaceAfter=10)
@@ -181,12 +162,10 @@ async def export_pdf_report(
         
         story = []
 
-        # Header
         story.append(Paragraph("<b>REPORTE TÉCNICO DE INSPECCIÓN VISUAL (VT) - API 1104</b>", title_style))
         story.append(Paragraph("Evaluación de Soldadura mediante Visión Artificial (YOLOv8)", header_style))
         story.append(Spacer(1, 12))
 
-        # Datos Generales
         data_general = [
             [Paragraph("Inspector / Operador:", label_style), Paragraph(inspector_name, value_style), Paragraph("Fecha / Hora:", label_style), Paragraph(inspection_time, value_style)],
             [Paragraph("Tag / ID Tubería:", label_style), Paragraph(pipe_tag, value_style), Paragraph("Diámetro Ext. (OD):", label_style), Paragraph(f"{pipe_od_mm} mm", value_style)],
@@ -201,7 +180,6 @@ async def export_pdf_report(
         story.append(t_general)
         story.append(Spacer(1, 12))
 
-        # Procesar Imagen Base64
         if "," in annotated_image_b64:
             annotated_image_b64 = annotated_image_b64.split(",")[1]
         
@@ -212,7 +190,6 @@ async def export_pdf_report(
         story.append(report_img)
         story.append(Spacer(1, 12))
 
-        # Tabla de Resultados
         verdict_color = colors.HexColor('#008744') if verdict == "APROBADO" else colors.HexColor('#D62D20')
         verdict_style = ParagraphStyle('VerdictStyle', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold', textColor=verdict_color)
 
@@ -231,14 +208,13 @@ async def export_pdf_report(
         story.append(t_results)
         story.append(Spacer(1, 10))
 
-        # Metrología y Cámara
         story.append(Paragraph("<b>Parámetros Métricos y de Captura:</b>", label_style))
         story.append(Spacer(1, 4))
         
         data_tech = [
             [Paragraph("Resolución Cámara:", label_style), Paragraph(camera_resolution, value_style)],
             [Paragraph("Escala Calculada:", label_style), Paragraph(f"{round(pixel_per_mm, 3)} px/mm", value_style)],
-            [Paragraph("Fórmula de Calibración:", label_style), Paragraph("px_mm = (Alto_PX * 0.8) / OD_mm", value_style)]
+            [Paragraph("Fórmula Calibración:", label_style), Paragraph("px_mm = (Alto_PX * 0.8) / OD_mm", value_style)]
         ]
         t_tech = Table(data_tech, colWidths=[140, 400])
         t_tech.setStyle(TableStyle([
@@ -257,8 +233,5 @@ async def export_pdf_report(
         )
 
     except Exception as e:
-        print(f"Error generando PDF: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generando PDF: {str(e)}"
-        )
+        print(f"Error PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
