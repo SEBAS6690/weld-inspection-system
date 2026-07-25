@@ -10,7 +10,10 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 
-# Limitar hilos de CPU de PyTorch para evitar saturar recursos
+# Redirigir la configuración de YOLO a la carpeta temporal /tmp para evitar avisos de permisos
+os.environ["YOLO_CONFIG_DIR"] = "/tmp/Ultralytics"
+
+# Limitar hilos de CPU de PyTorch para optimizar uso de memoria
 torch.set_num_threads(2)
 
 # Parche de compatibilidad PyTorch 2.6+
@@ -46,7 +49,7 @@ else:
 
 def convert_cv_to_base64(img_np):
     """
-    Convierte una imagen de OpenCV (BGR) a una cadena Base64 optimizada en calidad.
+    Convierte una imagen de OpenCV (BGR) a una cadena Base64 optimizada.
     """
     _, buffer = cv2.imencode('.jpg', img_np, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
     base64_str = base64.b64encode(buffer).decode('utf-8')
@@ -62,79 +65,97 @@ async def inspect_weld(
     pipe_od_mm: float = Form(...)
 ):
     """
-    Endpoint de inspección con mayor sensibilidad y evaluación estricta bajo API 1104.
+    Endpoint de inspección limitado exclusivamente al ROI de la guía verde central.
     """
     try:
         contents = await file.read()
         pil_image = Image.open(io.BytesIO(contents)).convert('RGB')
         
-        # Reducción de resolución para optimizar procesamiento en RAM
+        # Reducción proporcional para optimizar memoria RAM
         pil_image.thumbnail((1280, 1280))
         img_np = np.array(pil_image)
         img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
         h, w, _ = img_bgr.shape
 
-        # 1. MEJORA DE IMAGEN: Filtro de Enfoque (Sharpness) para resaltar grietas/poros
+        # 1. DELIMITACIÓN DEL ÁREA DE TRABAJO (ROI)
+        # La guía verde en el frontend representa la franja central del 35% al 65% del ancho
+        x_start = int(w * 0.35)
+        x_end = int(w * 0.65)
+
+        # Recorte de la franja central del cordón
+        roi_img = img_bgr[:, x_start:x_end]
+
+        # 2. PROCESAMIENTO Y FILTRO DE ENFOQUE (SHARPNESS) EN LA ZONA CORTADA
         kernel_sharpening = np.array([[0, -1, 0], 
                                       [-1, 5, -1], 
                                       [0, -1, 0]])
-        img_processed = cv2.filter2D(img_bgr, -1, kernel_sharpening)
+        roi_processed = cv2.filter2D(roi_img, -1, kernel_sharpening)
 
-        # 2. INFERENCIA CON MAYOR SENSIBILIDAD (conf=0.10)
+        # 3. INFERENCIA DE YOLO EXCLUSIVAMENTE EN EL RECORTE DEL CORDÓN
         with torch.no_grad():
-            results = model(img_processed, conf=0.10, imgsz=640)
+            results = model(roi_processed, conf=0.10, imgsz=640)
         
         boxes = results[0].boxes
 
-        # Tolerancia máxima según API 1104 Sec. 9.3
+        # Tolerancia máxima según norma API 1104 Sec. 9.3
         max_allowed_mm = round(min(1.6, pipe_od_mm * 0.05), 2)
 
         verdict = "APROBADO"
         defect_type = "Ninguno / Cordón Sano"
         defect_size_mm = 0.0
-        observations = "Cordón libre de discontinuidades críticas según los parámetros de la norma."
+        observations = "Cordón dentro de la guía libre de discontinuidades críticas."
         
         annotated_img = img_bgr.copy()
 
         if len(boxes) > 0:
-            # Seleccionar la detección con mayor nivel de confianza o significancia
+            # Seleccionar la detección con mayor nivel de confianza dentro de la guía
             best_box = max(boxes, key=lambda b: float(b.conf[0]))
             cls_id = int(best_box.cls[0])
             label_name = model.names[cls_id] if hasattr(model, 'names') else "Discontinuidad"
             
-            x1, y1, x2, y2 = map(int, best_box.xyxy[0])
+            # Coordenadas locales dentro de la sub-imagen recortada (ROI)
+            rx1, ry1, rx2, ry2 = map(int, best_box.xyxy[0])
+            
+            # Mapeo / Proyección de coordenadas locales a la foto completa
+            x1 = rx1 + x_start
+            y1 = ry1
+            x2 = rx2 + x_start
+            y2 = ry2
+
             box_w_px = x2 - x1
             box_h_px = y2 - y1
 
-            # Relación de escala píxel -> milímetro basada en el Diámetro Exterior (OD)
+            # Escalamiento de píxeles a milímetros
             pixel_per_mm = (h * 0.8) / pipe_od_mm if pipe_od_mm > 0 else 1.0
             defect_size_mm = round(max(box_w_px, box_h_px) / pixel_per_mm, 2)
             defect_type = label_name.capitalize()
 
-            # 3. EVALUACIÓN DE CRITERIO DE ACEPTACIÓN / RECHAZO
+            # Evaluación contra norma API 1104
             if defect_size_mm > max_allowed_mm or defect_type != "Ninguno / Cordón Sano":
                 verdict = "RECHAZADO"
-                observations = f"Discontinuidad detectada ('{defect_type}', {defect_size_mm} mm). Supera la tolerancia permitida por API 1104 ({max_allowed_mm} mm)."
+                observations = f"Discontinuidad detectada en cordón ('{defect_type}', {defect_size_mm} mm). Supera la norma API 1104 ({max_allowed_mm} mm)."
                 box_color = (0, 0, 255) # Rojo Neón (Rechazado)
             else:
                 verdict = "APROBADO"
-                observations = f"Discontinuidad leve detectada ('{defect_type}', {defect_size_mm} mm), dentro de la tolerancia admisible."
+                observations = f"Discontinuidad leve ('{defect_type}', {defect_size_mm} mm) dentro de la tolerancia de la norma."
                 box_color = (0, 255, 255) # Amarillo Neón (Alerta)
 
-            # Dibujar recuadro y etiqueta sobre la falla
+            # Dibujar el marco de la discontinuidad sobre la foto completa
             cv2.rectangle(annotated_img, (x1, y1), (x2, y2), box_color, 3)
             tag_text = f"{defect_type}: {defect_size_mm}mm"
             (text_w, text_h), _ = cv2.getTextSize(tag_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
             cv2.rectangle(annotated_img, (x1, y1 - text_h - 10), (x1 + text_w + 10, y1), box_color, -1)
             cv2.putText(annotated_img, tag_text, (x1 + 5, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
-            annotated_b64 = convert_cv_to_base64(annotated_img)
-        else:
-            annotated_b64 = convert_cv_to_base64(img_bgr)
+        # Líneas de referencia sutiles para indicar el área evaluada en la foto resultante
+        cv2.line(annotated_img, (x_start, 0), (x_start, h), (255, 255, 0), 1)
+        cv2.line(annotated_img, (x_end, 0), (x_end, h), (255, 255, 0), 1)
 
-        # Limpieza explícita para evitar fuga de memoria
-        del contents, pil_image, img_np, img_bgr, img_processed, results
+        annotated_b64 = convert_cv_to_base64(annotated_img)
+
+        # Liberar variables explícitamente para asegurar la limpieza de RAM
+        del contents, pil_image, img_np, img_bgr, roi_img, roi_processed, results
         gc.collect()
 
         return {
