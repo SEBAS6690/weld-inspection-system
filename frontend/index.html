@@ -274,23 +274,29 @@
         </div>
     </div>
 
-    <!-- Formulario de Exportación en el Panel de Resultados -->
-<div id="pdfModal" class="pdf-modal" style="display: none;">
-  <div class="modal-content">
-    <h3>📄 Generar Reporte PDF API 1104</h3>
-    
-    <label>Nombre del Inspector:</label>
-    <input type="text" id="inspectorName" placeholder="Ej: Ing. Víctor Yánez" class="styled-input">
-    
-    <label>Tag / Identificador de Tubería:</label>
-    <input type="text" id="pipeTag" placeholder="Ej: TUB-LINE-01-A" class="styled-input">
+    <!-- Botón para abrir el formulario PDF dentro del panel de resultados -->
+<button id="btnOpenPdf" onclick="openPdfModal()" class="primary-btn" style="margin-top: 10px; background-color: #ffcc00; color: #000; display: none;">
+  📄 Generar Reporte PDF
+</button>
 
-    <div class="modal-actions">
-      <button onclick="downloadPDF()" class="primary-btn export-btn">📥 Descargar Reporte PDF</button>
-      <button onclick="closePdfModal()" class="secondary-btn">Cancelar</button>
+<!-- Ventana Modal de Exportación PDF -->
+<div id="pdfModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000;">
+  <div style="background: #151c2e; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; border: 1px solid #232d42;">
+    <h3 style="color: #00ff88; margin-bottom: 12px; font-size: 1.1rem;">📄 Reporte de Inspección VT</h3>
+    
+    <label style="font-size: 0.8rem; color: #8a99ad;">Nombre del Inspector:</label>
+    <input type="text" id="inspectorName" placeholder="Ej: Ing. Víctor Yánez" class="styled-select" style="margin-bottom: 10px;">
+    
+    <label style="font-size: 0.8rem; color: #8a99ad;">Tag / Identificador de Tubería:</label>
+    <input type="text" id="pipeTag" placeholder="Ej: TUB-LINE-01-A" class="styled-select" style="margin-bottom: 15px;">
+
+    <div style="display: flex; gap: 10px;">
+      <button onclick="downloadPDF()" class="primary-btn" style="margin: 0;">📥 Descargar PDF</button>
+      <button onclick="closePdfModal()" class="primary-btn" style="margin: 0; background: #232d42; color: #fff;">Cancelar</button>
     </div>
   </div>
 </div>
+
 
     <script src="app.js"></script>
 </body>
