@@ -1,14 +1,12 @@
 /* ==========================================================================
-   SISTEMA DE INSPECCIÓN VISUAL VT API 1104 - LÓGICA FRONTEND
+   SISTEMA DE INSPECCIÓN VISUAL VT API 1104 - FRONTEND LIBRE DE CREDENCIALES
    ========================================================================== */
 
 const API_BASE_URL = "https://weld-inspection-system.onrender.com";
-const DEFAULT_API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!";
 
 // Elementos del DOM
 const webcamElement = document.getElementById('webcamFeed');
 const pipeDiameterSelect = document.getElementById('pipeDiameter');
-const apiKeyInput = document.getElementById('apiKeyInput');
 const captureBtn = document.getElementById('captureBtn');
 const resultsSection = document.getElementById('resultsSection');
 const resultsCard = document.getElementById('resultsCard');
@@ -16,7 +14,7 @@ const verdictBadge = document.getElementById('verdictBadge');
 const resultImageContainer = document.getElementById('resultImageContainer');
 
 /**
- * Inicia la transmisión de la cámara
+ * Activa el video de la cámara
  */
 async function startCamera() {
     try {
@@ -24,7 +22,8 @@ async function startCamera() {
             video: {
                 facingMode: { ideal: "environment" },
                 width: { ideal: 1280 },
-                height: { ideal: 720 }
+                height: { ideal: 720 },
+                aspectRatio: { ideal: 1.777777778 }
             }
         });
         if (webcamElement) {
@@ -32,19 +31,19 @@ async function startCamera() {
             await webcamElement.play().catch(() => {});
         }
     } catch (err) {
-        console.error("Error al acceder a la cámara:", err);
-        alert("No se pudo acceder a la cámara. Por favor concede los permisos correspondientes.");
+        console.error("Error de cámara:", err);
+        alert("No se pudo iniciar la cámara. Concede los permisos en el navegador.");
     }
 }
 
 /**
- * Convierte el frame de la cámara a Blob JPEG de forma directa
+ * Extrae la foto actual de la cámara como un archivo ejecutable Blob JPEG
  */
 function captureFrameBlob() {
     return new Promise((resolve, reject) => {
         try {
             if (!webcamElement || !webcamElement.videoWidth) {
-                return reject(new Error("La cámara no está lista o no transmite video."));
+                return reject(new Error("La cámara no está enviando señal de video."));
             }
 
             const canvas = document.createElement('canvas');
@@ -58,7 +57,7 @@ function captureFrameBlob() {
                 if (blob) {
                     resolve(blob);
                 } else {
-                    reject(new Error("Error al convertir la imagen para envío."));
+                    reject(new Error("No se logró procesar la captura de la cámara."));
                 }
             }, 'image/jpeg', 0.85);
         } catch (err) {
@@ -68,13 +67,10 @@ function captureFrameBlob() {
 }
 
 /**
- * Procesa la inspección enviando la captura al backend
+ * Petición de inspección sin encabezados de autenticación
  */
 async function processInspection() {
-    console.log("Iniciando proceso de inspección...");
-    
     const selectedOD = pipeDiameterSelect ? pipeDiameterSelect.value : "114.3";
-    const userApiKey = (apiKeyInput && apiKeyInput.value.trim()) ? apiKeyInput.value.trim() : DEFAULT_API_KEY;
 
     if (captureBtn) {
         captureBtn.disabled = true;
@@ -82,36 +78,27 @@ async function processInspection() {
     }
 
     try {
-        // 1. Obtener imagen desde la cámara
         const imageBlob = await captureFrameBlob();
-        
-        // 2. Preparar datos
         const formData = new FormData();
         formData.append("file", imageBlob, "inspection_frame.jpg");
         formData.append("pipe_od_mm", selectedOD);
 
-        // 3. Petición HTTP al Backend
+        // Envío directo al servidor
         const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
             method: "POST",
-            headers: {
-                "X-API-Key": userApiKey
-            },
             body: formData
         });
 
         if (!response.ok) {
-            const errDetail = await response.text();
-            throw new Error(`Respuesta del servidor (${response.status}): ${errDetail}`);
+            const errText = await response.text();
+            throw new Error(`El servidor falló con código ${response.status}: ${errText}`);
         }
 
         const data = await response.json();
-        console.log("Datos recibidos:", data);
-        
-        // 4. Desplegar resultados
         renderResults(data);
 
     } catch (error) {
-        console.error("Error detectado:", error);
+        console.error("Error en inspección:", error);
         alert(`Atención: ${error.message}`);
     } finally {
         if (captureBtn) {
@@ -122,13 +109,10 @@ async function processInspection() {
 }
 
 /**
- * Renderiza la tarjeta de evaluación API 1104
+ * Renderiza el reporte visual
  */
 function renderResults(data) {
-    if (!resultsSection) {
-        alert("Error de interfaz: No se encontró la sección de resultados en el HTML.");
-        return;
-    }
+    if (!resultsSection) return;
 
     const verdict = data.verdict || "APROBADO";
     const isApproved = verdict === "APROBADO";
@@ -165,7 +149,7 @@ function renderResults(data) {
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Vinculación explícita del evento al cargar el DOM
+// Escuchador de arranque
 document.addEventListener('DOMContentLoaded', () => {
     startCamera();
     if (captureBtn) {
