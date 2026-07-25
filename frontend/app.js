@@ -26,8 +26,8 @@ async function startCamera() {
         const constraints = {
             video: {
                 facingMode: { ideal: "environment" },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
                 focusMode: { ideal: "continuous" }
             }
         };
@@ -36,7 +36,6 @@ async function startCamera() {
         webcamElement.srcObject = stream;
         await webcamElement.play().catch(() => {});
 
-        // Solicitar enfoque continuo al hardware de la cámara
         const track = stream.getVideoTracks()[0];
         if (track && track.getCapabilities) {
             const capabilities = track.getCapabilities();
@@ -50,25 +49,6 @@ async function startCamera() {
         console.error("Error al acceder a la cámara:", err);
         alert("No se pudo acceder a la cámara. Asegúrate de conceder los permisos e intenta nuevamente.");
     }
-}
-
-/**
- * Tap-to-Focus: Permite fijar o ajustar el enfoque al tocar la vista de la cámara
- */
-if (webcamElement) {
-    webcamElement.addEventListener('click', async () => {
-        const track = webcamElement.srcObject?.getVideoTracks()[0];
-        if (track && track.getCapabilities) {
-            const caps = track.getCapabilities();
-            if (caps.focusMode && caps.focusMode.includes('single-shot')) {
-                try {
-                    await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
-                } catch (e) {
-                    console.warn("Tap-to-focus no soportado en este dispositivo:", e);
-                }
-            }
-        }
-    });
 }
 
 /**
@@ -110,9 +90,9 @@ function captureFrameBlob() {
             if (blob) {
                 resolve(blob);
             } else {
-                reject(new Error("No se pudo generar la captura desde el sensor de la cámara."));
+                reject(new Error("No se pudo generar la captura desde la cámara."));
             }
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.85);
     });
 }
 
@@ -131,7 +111,6 @@ async function processInspection() {
     // Actualizar estado visual de la UI
     captureBtn.disabled = true;
     captureBtn.innerText = "⏳ ANALIZANDO JUNTA...";
-    if (resultsSection) resultsSection.style.display = "none";
 
     try {
         const imageBlob = await captureFrameBlob();
@@ -139,25 +118,38 @@ async function processInspection() {
         formData.append("file", imageBlob, "inspection_frame.jpg");
         formData.append("pipe_od_mm", selectedOD);
 
+        // Petición con timeout manual de 20 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
         const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
             method: "POST",
             headers: {
                 "X-API-Key": userApiKey
             },
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || `Error devuelto por el servidor (${response.status})`);
+            const errText = await response.text();
+            throw new Error(`Servidor respondió con código ${response.status}: ${errText}`);
         }
 
         const data = await response.json();
+        console.log("Respuesta recibida del backend:", data);
+
         renderResults(data);
 
     } catch (error) {
         console.error("Error durante la inspección:", error);
-        alert(`Error al procesar la inspección: ${error.message}`);
+        if (error.name === 'AbortError') {
+            alert("El servidor en Render tardó demasiado en responder (Timeout). Por favor intenta presionar el botón de nuevo.");
+        } else {
+            alert(`Error al procesar la inspección: ${error.message}`);
+        }
     } finally {
         captureBtn.disabled = false;
         captureBtn.innerText = "📸 CAPTURAR E INSPECCIONAR";
@@ -168,24 +160,28 @@ async function processInspection() {
  * Muestra el informe de evaluación bajo norma API 1104
  */
 function renderResults(data) {
-    if (!resultsSection) return;
+    if (!resultsSection) {
+        console.error("El elemento 'resultsSection' no existe en el DOM.");
+        return;
+    }
 
-    const isApproved = data.verdict === "APROBADO";
+    const verdict = data.verdict || "APROBADO";
+    const isApproved = verdict === "APROBADO";
 
     if (resultsCard) resultsCard.className = `results-card ${isApproved ? 'approved' : 'rejected'}`;
     if (verdictBadge) {
         verdictBadge.className = `verdict-badge ${isApproved ? 'approved' : 'rejected'}`;
-        verdictBadge.innerText = data.verdict;
+        verdictBadge.innerText = verdict;
     }
 
     if (resultImageContainer) {
         if (data.annotated_image) {
             resultImageContainer.innerHTML = `
-                <h3>📷 DEFECTO ENMARCADO (IA):</h3>
-                <img src="${data.annotated_image}" class="annotated-image" alt="Resultado de Inspección Visual VT">
+                <h3 style="margin-top:15px; color:#fff;">📷 DEFECTO ENMARCADO (IA):</h3>
+                <img src="${data.annotated_image}" class="annotated-image" style="width:100%; border-radius:8px; margin-top:8px;" alt="Resultado VT">
             `;
         } else {
-            resultImageContainer.innerHTML = "";
+            resultImageContainer.innerHTML = "<p style='color:#aaa;'>Sin imagen renderizada.</p>";
         }
     }
 
@@ -194,12 +190,13 @@ function renderResults(data) {
         if (el) el.innerText = val;
     };
 
-    setEl('resDefectType', data.defect_type || "N/A");
-    setEl('resDefectSize', data.defect_size_mm ? `${data.defect_size_mm} mm` : "N/A");
-    setEl('resMaxAllowed', data.max_allowed_mm ? `${data.max_allowed_mm} mm` : "N/A");
+    setEl('resDefectType', data.defect_type || "Ninguno / Cordón Sano");
+    setEl('resDefectSize', data.defect_size_mm !== undefined ? `${data.defect_size_mm} mm` : "0.0 mm");
+    setEl('resMaxAllowed', data.max_allowed_mm !== undefined ? `${data.max_allowed_mm} mm` : "N/A");
     setEl('resNormClause', data.norm_clause || "API 1104 Sec. 9.3");
     setEl('resObservations', data.observations || "Sin observaciones.");
 
+    // Desplegar sección de resultados
     resultsSection.style.display = "block";
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
