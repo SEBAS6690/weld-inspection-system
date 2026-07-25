@@ -3,21 +3,23 @@
    ========================================================================== */
 
 const API_BASE_URL = "https://weld-inspection-system.onrender.com";
+const DEFAULT_API_KEY = "WeldSec2026_EmpresaPrivada_SecretKey!";
 
 // Elementos del DOM
 const webcamElement = document.getElementById('webcamFeed');
 const pipeDiameterSelect = document.getElementById('pipeDiameter');
+const apiKeyInput = document.getElementById('apiKeyInput');
 const captureBtn = document.getElementById('captureBtn');
 const resultsSection = document.getElementById('resultsSection');
 const resultsCard = document.getElementById('resultsCard');
 const verdictBadge = document.getElementById('verdictBadge');
 const resultImageContainer = document.getElementById('resultImageContainer');
 
-// Canvas oculto para procesar el frame
+// Canvas oculto para procesar el fotograma
 const canvas = document.createElement('canvas');
 
 /**
- * Inicia la cámara con enfoque continuo
+ * Inicia el stream de la cámara trasera priorizando enfoque continuo
  */
 async function startCamera() {
     try {
@@ -32,10 +34,9 @@ async function startCamera() {
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         webcamElement.srcObject = stream;
-
-        // Reproducir video explícitamente
         await webcamElement.play().catch(() => {});
 
+        // Solicitar enfoque continuo al hardware de la cámara
         const track = stream.getVideoTracks()[0];
         if (track && track.getCapabilities) {
             const capabilities = track.getCapabilities();
@@ -47,29 +48,31 @@ async function startCamera() {
         }
     } catch (err) {
         console.error("Error al acceder a la cámara:", err);
-        alert("No se pudo acceder a la cámara. Revisa los permisos e intenta de nuevo.");
+        alert("No se pudo acceder a la cámara. Asegúrate de conceder los permisos e intenta nuevamente.");
     }
 }
 
 /**
- * Tap-to-Focus
+ * Tap-to-Focus: Permite fijar o ajustar el enfoque al tocar la vista de la cámara
  */
-webcamElement.addEventListener('click', async () => {
-    const track = webcamElement.srcObject?.getVideoTracks()[0];
-    if (track && track.getCapabilities) {
-        const caps = track.getCapabilities();
-        if (caps.focusMode && caps.focusMode.includes('single-shot')) {
-            try {
-                await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
-            } catch (e) {
-                console.warn("Tap-to-focus no soportado:", e);
+if (webcamElement) {
+    webcamElement.addEventListener('click', async () => {
+        const track = webcamElement.srcObject?.getVideoTracks()[0];
+        if (track && track.getCapabilities) {
+            const caps = track.getCapabilities();
+            if (caps.focusMode && caps.focusMode.includes('single-shot')) {
+                try {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+                } catch (e) {
+                    console.warn("Tap-to-focus no soportado en este dispositivo:", e);
+                }
             }
         }
-    }
-});
+    });
+}
 
 /**
- * Captura el fotograma asegurando dimensiones válidas
+ * Captura el fotograma actual garantizando relación de aspecto 4:3
  */
 function captureFrameBlob() {
     return new Promise((resolve, reject) => {
@@ -77,7 +80,7 @@ function captureFrameBlob() {
         const videoHeight = webcamElement.videoHeight || 960;
 
         if (!webcamElement.srcObject) {
-            return reject(new Error("La cámara no está activa."));
+            return reject(new Error("La cámara no se encuentra activa."));
         }
 
         const targetAspect = 4 / 3;
@@ -107,24 +110,25 @@ function captureFrameBlob() {
             if (blob) {
                 resolve(blob);
             } else {
-                reject(new Error("No se pudo generar la imagen desde la cámara."));
+                reject(new Error("No se pudo generar la captura desde el sensor de la cámara."));
             }
         }, 'image/jpeg', 0.92);
     });
 }
 
 /**
- * Procesa la inspección enviando los datos al backend
+ * Envía la captura e información técnica al backend para análisis con YOLOv8
  */
 async function processInspection() {
     const selectedOD = pipeDiameterSelect ? pipeDiameterSelect.value : "114.3";
-    
+    const userApiKey = apiKeyInput && apiKeyInput.value.trim() ? apiKeyInput.value.trim() : DEFAULT_API_KEY;
+
     if (!selectedOD) {
         alert("Por favor selecciona el Diámetro Nominal de la Tubería.");
         return;
     }
 
-    // Cambiar estado visual del botón
+    // Actualizar estado visual de la UI
     captureBtn.disabled = true;
     captureBtn.innerText = "⏳ ANALIZANDO JUNTA...";
     if (resultsSection) resultsSection.style.display = "none";
@@ -137,12 +141,15 @@ async function processInspection() {
 
         const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
             method: "POST",
+            headers: {
+                "X-API-Key": userApiKey
+            },
             body: formData
         });
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || `Error en el servidor (${response.status})`);
+            throw new Error(errData.detail || `Error devuelto por el servidor (${response.status})`);
         }
 
         const data = await response.json();
@@ -150,7 +157,7 @@ async function processInspection() {
 
     } catch (error) {
         console.error("Error durante la inspección:", error);
-        alert(`Error al procesar: ${error.message}`);
+        alert(`Error al procesar la inspección: ${error.message}`);
     } finally {
         captureBtn.disabled = false;
         captureBtn.innerText = "📸 CAPTURAR E INSPECCIONAR";
@@ -158,7 +165,7 @@ async function processInspection() {
 }
 
 /**
- * Muestra la tarjeta de resultados
+ * Muestra el informe de evaluación bajo norma API 1104
  */
 function renderResults(data) {
     if (!resultsSection) return;
@@ -175,7 +182,7 @@ function renderResults(data) {
         if (data.annotated_image) {
             resultImageContainer.innerHTML = `
                 <h3>📷 DEFECTO ENMARCADO (IA):</h3>
-                <img src="${data.annotated_image}" class="annotated-image" alt="Resultado de Inspección VT">
+                <img src="${data.annotated_image}" class="annotated-image" alt="Resultado de Inspección Visual VT">
             `;
         } else {
             resultImageContainer.innerHTML = "";
@@ -197,7 +204,7 @@ function renderResults(data) {
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Event Listeners
+// Escuchadores de eventos
 if (captureBtn) captureBtn.addEventListener('click', processInspection);
 
 window.addEventListener('DOMContentLoaded', startCamera);
