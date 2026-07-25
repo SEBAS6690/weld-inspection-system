@@ -4,12 +4,15 @@ let lastInspectionResult = null;
 async function startCamera() {
     try {
         const videoElement = document.getElementById("webcamFeed");
+
+        // Configuración para forzar máxima resolución, enfoque continuo y alta tasa de cuadros
         const constraints = {
             video: {
-                facingMode: { ideal: "environment" },
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                aspectRatio: { ideal: 16 / 9 }
+                facingMode: { ideal: "environment" }, // Prioriza la cámara trasera principal
+                width: { ideal: 3840, min: 1920 },    # Solicita 4K o Full HD como mínimo
+                height: { ideal: 2160, min: 1080 },
+                focusMode: { ideal: "continuous" },   // Fuerza autoenfoque continuo
+                frameRate: { ideal: 30 }
             },
             audio: false
         };
@@ -17,13 +20,44 @@ async function startCamera() {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = stream;
 
+        // Activar funciones avanzadas de hardware (Autoenfoque y Antiantorcha) si el celular las soporta
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+
+        // Forzar enfoque continuo en navegadores compatibles (Chrome en Android)
+        if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
+            await track.applyConstraints({
+                advanced: [{ focusMode: "continuous" }]
+            });
+        }
+
+        // Esperar a que carguen los metadatos para obtener las dimensiones reales
         await new Promise((resolve) => {
             videoElement.onloadedmetadata = () => resolve();
         });
 
         await videoElement.play();
+        console.log(`📷 Cámara iniciada a resolución nativa: ${videoElement.videoWidth}x${videoElement.videoHeight}px`);
+
     } catch (error) {
-        console.error("Error al acceder a la cámara:", error);
+        console.error("Error al acceder a la cámara con alta resolución:", error);
+        // Fallback básico en caso de que el celular rechace 4K/1080p
+        fallbackCamera();
+    }
+}
+
+// Función de respaldo en caso de celulares antiguos o restricciones de navegador
+async function fallbackCamera() {
+    try {
+        const videoElement = document.getElementById("webcamFeed");
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+        });
+        videoElement.srcObject = stream;
+        await videoElement.play();
+    } catch (e) {
+        alert("No se pudo acceder a la cámara del dispositivo.");
     }
 }
 
