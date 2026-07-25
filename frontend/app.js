@@ -15,153 +15,118 @@ const resultsCard = document.getElementById('resultsCard');
 const verdictBadge = document.getElementById('verdictBadge');
 const resultImageContainer = document.getElementById('resultImageContainer');
 
-// Canvas oculto para procesar el fotograma
-const canvas = document.createElement('canvas');
-
 /**
- * Inicia el stream de la cámara trasera priorizando enfoque continuo
+ * Inicia la transmisión de la cámara
  */
 async function startCamera() {
     try {
-        const constraints = {
+        const stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: { ideal: "environment" },
                 width: { ideal: 1280 },
-                height: { ideal: 720 },
-                focusMode: { ideal: "continuous" }
+                height: { ideal: 720 }
             }
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        webcamElement.srcObject = stream;
-        await webcamElement.play().catch(() => {});
-
-        const track = stream.getVideoTracks()[0];
-        if (track && track.getCapabilities) {
-            const capabilities = track.getCapabilities();
-            if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                await track.applyConstraints({
-                    advanced: [{ focusMode: 'continuous' }]
-                });
-            }
+        });
+        if (webcamElement) {
+            webcamElement.srcObject = stream;
+            await webcamElement.play().catch(() => {});
         }
     } catch (err) {
         console.error("Error al acceder a la cámara:", err);
-        alert("No se pudo acceder a la cámara. Asegúrate de conceder los permisos e intenta nuevamente.");
+        alert("No se pudo acceder a la cámara. Por favor concede los permisos correspondientes.");
     }
 }
 
 /**
- * Captura el fotograma actual garantizando relación de aspecto 4:3
+ * Convierte el frame de la cámara a Blob JPEG de forma directa
  */
 function captureFrameBlob() {
     return new Promise((resolve, reject) => {
-        const videoWidth = webcamElement.videoWidth || 1280;
-        const videoHeight = webcamElement.videoHeight || 960;
-
-        if (!webcamElement.srcObject) {
-            return reject(new Error("La cámara no se encuentra activa."));
-        }
-
-        const targetAspect = 4 / 3;
-        const currentAspect = videoWidth / videoHeight;
-
-        let sx, sy, sWidth, sHeight;
-
-        if (currentAspect > targetAspect) {
-            sHeight = videoHeight;
-            sWidth = videoHeight * targetAspect;
-            sx = (videoWidth - sWidth) / 2;
-            sy = 0;
-        } else {
-            sWidth = videoWidth;
-            sHeight = videoWidth / targetAspect;
-            sx = 0;
-            sy = (videoHeight - sHeight) / 2;
-        }
-
-        canvas.width = 1280;
-        canvas.height = 960;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(webcamElement, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-
-        canvas.toBlob((blob) => {
-            if (blob) {
-                resolve(blob);
-            } else {
-                reject(new Error("No se pudo generar la captura desde la cámara."));
+        try {
+            if (!webcamElement || !webcamElement.videoWidth) {
+                return reject(new Error("La cámara no está lista o no transmite video."));
             }
-        }, 'image/jpeg', 0.85);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = webcamElement.videoWidth || 1280;
+            canvas.height = webcamElement.videoHeight || 720;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(webcamElement, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error("Error al convertir la imagen para envío."));
+                }
+            }, 'image/jpeg', 0.85);
+        } catch (err) {
+            reject(err);
+        }
     });
 }
 
 /**
- * Envía la captura e información técnica al backend para análisis con YOLOv8
+ * Procesa la inspección enviando la captura al backend
  */
 async function processInspection() {
+    console.log("Iniciando proceso de inspección...");
+    
     const selectedOD = pipeDiameterSelect ? pipeDiameterSelect.value : "114.3";
-    const userApiKey = apiKeyInput && apiKeyInput.value.trim() ? apiKeyInput.value.trim() : DEFAULT_API_KEY;
+    const userApiKey = (apiKeyInput && apiKeyInput.value.trim()) ? apiKeyInput.value.trim() : DEFAULT_API_KEY;
 
-    if (!selectedOD) {
-        alert("Por favor selecciona el Diámetro Nominal de la Tubería.");
-        return;
+    if (captureBtn) {
+        captureBtn.disabled = true;
+        captureBtn.innerText = "⏳ ANALIZANDO JUNTA...";
     }
 
-    // Actualizar estado visual de la UI
-    captureBtn.disabled = true;
-    captureBtn.innerText = "⏳ ANALIZANDO JUNTA...";
-
     try {
+        // 1. Obtener imagen desde la cámara
         const imageBlob = await captureFrameBlob();
+        
+        // 2. Preparar datos
         const formData = new FormData();
         formData.append("file", imageBlob, "inspection_frame.jpg");
         formData.append("pipe_od_mm", selectedOD);
 
-        // Petición con timeout manual de 20 segundos
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
-
+        // 3. Petición HTTP al Backend
         const response = await fetch(`${API_BASE_URL}/v1/inspect`, {
             method: "POST",
             headers: {
                 "X-API-Key": userApiKey
             },
-            body: formData,
-            signal: controller.signal
+            body: formData
         });
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Servidor respondió con código ${response.status}: ${errText}`);
+            const errDetail = await response.text();
+            throw new Error(`Respuesta del servidor (${response.status}): ${errDetail}`);
         }
 
         const data = await response.json();
-        console.log("Respuesta recibida del backend:", data);
-
+        console.log("Datos recibidos:", data);
+        
+        // 4. Desplegar resultados
         renderResults(data);
 
     } catch (error) {
-        console.error("Error durante la inspección:", error);
-        if (error.name === 'AbortError') {
-            alert("El servidor en Render tardó demasiado en responder (Timeout). Por favor intenta presionar el botón de nuevo.");
-        } else {
-            alert(`Error al procesar la inspección: ${error.message}`);
-        }
+        console.error("Error detectado:", error);
+        alert(`Atención: ${error.message}`);
     } finally {
-        captureBtn.disabled = false;
-        captureBtn.innerText = "📸 CAPTURAR E INSPECCIONAR";
+        if (captureBtn) {
+            captureBtn.disabled = false;
+            captureBtn.innerText = "📸 CAPTURAR E INSPECCIONAR";
+        }
     }
 }
 
 /**
- * Muestra el informe de evaluación bajo norma API 1104
+ * Renderiza la tarjeta de evaluación API 1104
  */
 function renderResults(data) {
     if (!resultsSection) {
-        console.error("El elemento 'resultsSection' no existe en el DOM.");
+        alert("Error de interfaz: No se encontró la sección de resultados en el HTML.");
         return;
     }
 
@@ -178,10 +143,10 @@ function renderResults(data) {
         if (data.annotated_image) {
             resultImageContainer.innerHTML = `
                 <h3 style="margin-top:15px; color:#fff;">📷 DEFECTO ENMARCADO (IA):</h3>
-                <img src="${data.annotated_image}" class="annotated-image" style="width:100%; border-radius:8px; margin-top:8px;" alt="Resultado VT">
+                <img src="${data.annotated_image}" style="width:100%; border-radius:8px; margin-top:8px;" alt="Resultado Inspección">
             `;
         } else {
-            resultImageContainer.innerHTML = "<p style='color:#aaa;'>Sin imagen renderizada.</p>";
+            resultImageContainer.innerHTML = "";
         }
     }
 
@@ -196,12 +161,14 @@ function renderResults(data) {
     setEl('resNormClause', data.norm_clause || "API 1104 Sec. 9.3");
     setEl('resObservations', data.observations || "Sin observaciones.");
 
-    // Desplegar sección de resultados
     resultsSection.style.display = "block";
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Escuchadores de eventos
-if (captureBtn) captureBtn.addEventListener('click', processInspection);
-
-window.addEventListener('DOMContentLoaded', startCamera);
+// Vinculación explícita del evento al cargar el DOM
+document.addEventListener('DOMContentLoaded', () => {
+    startCamera();
+    if (captureBtn) {
+        captureBtn.onclick = processInspection;
+    }
+});
